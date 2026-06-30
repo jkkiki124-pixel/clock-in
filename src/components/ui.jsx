@@ -54,7 +54,7 @@ export function InfoGrid({ items }) {
 
 export function SummaryCard({ label, value, color, bg, icon }) {
   return (
-    <div style={{ background: bg, borderRadius: 10, padding: 12, border: `1px solid ${color}22` }}>
+    <div style={{ background: bg, borderRadius: 10, padding: 12, border: "1px solid " + color + "22" }}>
       <div style={{ fontSize: 18 }}>{icon}</div>
       <div style={{ fontSize: 20, fontWeight: 700, color }}>{value}</div>
       <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 2 }}>{label}</div>
@@ -70,57 +70,84 @@ export function SectionTitle({ children, color }) {
   );
 }
 
-// 요일 선택 버튼 그룹
 const ALL_DAYS = ["월", "화", "수", "목", "금", "토"];
 
 export function DayPicker({ selected, onChange }) {
   function toggle(day) {
-    onChange(selected.includes(day) ? selected.filter((d) => d !== day) : [...selected, day]);
+    if (selected.includes(day)) {
+      onChange(selected.filter((d) => d !== day));
+    } else {
+      onChange([...selected, day]);
+    }
   }
   return (
     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-      {ALL_DAYS.map((day) => (
-        <button
-          key={day}
-          onClick={() => toggle(day)}
-          style={{
-            padding: "6px 10px", borderRadius: 8,
-            border: `1px solid ${selected.includes(day) ? C.accent : C.border}`,
-            background: selected.includes(day) ? C.accentLight : "transparent",
-            color: selected.includes(day) ? C.accent : C.inkMuted,
-            fontWeight: 600, fontSize: 14,
-          }}
-        >
-          {day}
-        </button>
-      ))}
+      {ALL_DAYS.map((day) => {
+        const active = selected.includes(day);
+        return (
+          <button
+            key={day}
+            onClick={() => toggle(day)}
+            style={{
+              padding: "6px 10px",
+              borderRadius: 8,
+              border: "1px solid " + (active ? C.accent : C.border),
+              background: active ? C.accentLight : "transparent",
+              color: active ? C.accent : C.inkMuted,
+              fontWeight: 600,
+              fontSize: 14,
+            }}
+          >
+            {day}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-// 학생 정보 입력 폼 (추가/수정 공용)
 export function StudentForm({ form, setForm, onSubmit, submitLabel }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <FormField label="이름 *">
-        <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-          placeholder="홍길동" style={inputStyle} />
+        <input
+          value={form.name}
+          onChange={(e) => setForm({ ...form, name: e.target.value })}
+          placeholder="홍길동"
+          style={inputStyle}
+        />
       </FormField>
       <FormField label="학년">
-        <input value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value })}
-          placeholder="초3, 중1 등" style={inputStyle} />
+        <input
+          value={form.grade}
+          onChange={(e) => setForm({ ...form, grade: e.target.value })}
+          placeholder="초3, 중1 등"
+          style={inputStyle}
+        />
       </FormField>
       <FormField label="연락처">
-        <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
-          placeholder="010-0000-0000" style={inputStyle} />
+        <input
+          value={form.phone}
+          onChange={(e) => setForm({ ...form, phone: e.target.value })}
+          placeholder="010-0000-0000"
+          style={inputStyle}
+        />
       </FormField>
       <FormField label="학부모 연락처">
-        <input value={form.parentPhone} onChange={(e) => setForm({ ...form, parentPhone: e.target.value })}
-          placeholder="010-0000-0000" style={inputStyle} />
+        <input
+          value={form.parentPhone}
+          onChange={(e) => setForm({ ...form, parentPhone: e.target.value })}
+          placeholder="010-0000-0000"
+          style={inputStyle}
+        />
       </FormField>
       <FormField label="등록일">
-        <input type="date" value={form.registeredAt}
-          onChange={(e) => setForm({ ...form, registeredAt: e.target.value })} style={inputStyle} />
+        <input
+          type="date"
+          value={form.registeredAt}
+          onChange={(e) => setForm({ ...form, registeredAt: e.target.value })}
+          style={inputStyle}
+        />
       </FormField>
       <FormField label="수강 유형">
         <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} style={inputStyle}>
@@ -129,22 +156,113 @@ export function StudentForm({ form, setForm, onSubmit, submitLabel }) {
         </select>
       </FormField>
       <FormField label="수강료 (원)">
-        <input type="number" value={form.fee}
-          onChange={(e) => setForm({ ...form, fee: Number(e.target.value) })} style={inputStyle} />
+        <input
+          type="number"
+          value={form.fee}
+          onChange={(e) => setForm({ ...form, fee: Number(e.target.value) })}
+          style={inputStyle}
+        />
       </FormField>
       {form.type === "횟수제" && (
         <FormField label="총 횟수">
-          <input type="number" value={form.totalSessions || 10}
-            onChange={(e) => setForm({ ...form, totalSessions: Number(e.target.value) })} style={inputStyle} />
+          <input
+            type="number"
+            value={form.totalSessions || 10}
+            onChange={(e) => setForm({ ...form, totalSessions: Number(e.target.value) })}
+            style={inputStyle}
+          />
         </FormField>
       )}
       <FormField label="수업 요일">
         <DayPicker selected={form.days} onChange={(days) => setForm({ ...form, days })} />
       </FormField>
       <FormField label="메모">
-        <textarea value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })}
-          rows={2} placeholder="특이사항, 수업 스타일 등"
-          style={{ ...inputStyle, resize: "vertical" }} />
+        <textarea
+          value={form.memo}
+          onChange={(e) => setForm({ ...form, memo: e.target.value })}
+          rows={2}
+          placeholder="특이사항, 수업 스타일 등"
+          style={{ ...inputStyle, resize: "vertical" }}
+        />
       </FormField>
-      <button onClick={onSubmit} style={{
-        background: C.accent, color:
+      <button
+        onClick={onSubmit}
+        style={{
+          background: C.accent,
+          color: "#fff",
+          border: "none",
+          borderRadius: 10,
+          padding: "13px",
+          fontWeight: 700,
+          fontSize: 15,
+          marginTop: 4,
+        }}
+      >
+        {submitLabel}
+      </button>
+    </div>
+  );
+}
+
+export function BottomSheet({ onClose, children }) {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.45)",
+        zIndex: 200,
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "center",
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: C.surface,
+          borderRadius: "20px 20px 0 0",
+          width: "100%",
+          maxWidth: 600,
+          maxHeight: "90vh",
+          overflowY: "auto",
+          padding: "24px 20px 40px",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ width: 40, height: 4, background: C.border, borderRadius: 2, margin: "0 auto 20px" }} />
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export function Dialog({ children }) {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.5)",
+        zIndex: 400,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 20,
+      }}
+    >
+      <div
+        style={{
+          background: C.surface,
+          borderRadius: 16,
+          padding: "28px 24px",
+          width: "100%",
+          maxWidth: 360,
+          boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
