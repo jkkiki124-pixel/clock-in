@@ -1,4 +1,4 @@
-// 학생 데이터 훅 — Supabase 연동 버전 (CRUD + 출석/납부 관리)
+// 학생 데이터 훅 — Supabase 연동 버전 (CRUD + 출석/납부 관리, 보강 지원)
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase.js";
 import { fmtFullDate } from "../constants.js";
@@ -65,7 +65,7 @@ export function useStudents() {
       const attendance = {};
       (attendanceRows || [])
         .filter((a) => a.student_id === student.id)
-        .forEach((a) => { attendance[a.date] = true; });
+        .forEach((a) => { attendance[a.date] = a.is_makeup ? "makeup" : true; });
 
       const payments = (paymentRows || [])
         .filter((p) => p.student_id === student.id)
@@ -80,8 +80,8 @@ export function useStudents() {
 
   useEffect(() => { loadStudents(); }, [loadStudents]);
 
-  // 출석 토글 — 횟수제는 usedSessions 자동 증감
-  async function toggleAttendance(studentId, dateStr) {
+  // 출석 토글 — isMakeup이 true면 보강으로 기록, 횟수제는 usedSessions 자동 증감
+  async function toggleAttendance(studentId, dateStr, isMakeup = false) {
     const student = students.find((s) => s.id === studentId);
     if (!student) return;
 
@@ -90,7 +90,7 @@ export function useStudents() {
     if (isAttending) {
       await supabase.from("attendance").delete().eq("student_id", studentId).eq("date", dateStr);
     } else {
-      await supabase.from("attendance").insert({ student_id: studentId, date: dateStr });
+      await supabase.from("attendance").insert({ student_id: studentId, date: dateStr, is_makeup: isMakeup });
     }
 
     if (student.type === "횟수제") {
