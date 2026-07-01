@@ -1,12 +1,13 @@
-// 학생 목록 탭 — 검색 + 카드 리스트
+// 학생 목록 탭 — 검색 + 반별 그룹 카드 리스트
 import { useState } from "react";
 import { C, TODAY } from "../constants.js";
 import { Badge, EmptyState } from "./ui.jsx";
 
+const CLASS_TYPES = ["유치부", "초등부", "중고등부", "성인반"];
+
 export function StudentsTab({ students, onSelectStudent }) {
   const [search, setSearch] = useState("");
   const currentMonth = `${TODAY.getFullYear()}-${String(TODAY.getMonth() + 1).padStart(2, "0")}`;
-
   const filtered = students.filter((s) => s.name.includes(search) || s.grade.includes(search));
 
   return (
@@ -21,14 +22,30 @@ export function StudentsTab({ students, onSelectStudent }) {
         <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: C.inkMuted }}>🔍</span>
       </div>
 
-      <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}>
-        {filtered.length === 0
-          ? <EmptyState text="검색 결과가 없습니다." />
-          : filtered.map((s, i) => (
-            <StudentRow key={s.id} student={s} currentMonth={currentMonth} onSelect={onSelectStudent} isLast={i===filtered.length-1} />
-          ))
-        }
-      </div>
+      {filtered.length === 0 ? (
+        <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}` }}>
+          <EmptyState text="검색 결과가 없습니다." />
+        </div>
+      ) : (
+        CLASS_TYPES.map((ct) => {
+          const group = filtered.filter((s) => (s.classType || "초등부") === ct);
+          if (group.length === 0) return null;
+
+          return (
+            <div key={ct} style={{ marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, paddingLeft: 2 }}>
+                <span style={{ fontWeight: 700, fontSize: 14, color: C.ink }}>{ct}</span>
+                <span style={{ fontSize: 12, color: C.inkMuted }}>{group.length}명</span>
+              </div>
+              <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+                {group.map((s, i) => (
+                  <StudentRow key={s.id} student={s} currentMonth={currentMonth} onSelect={onSelectStudent} isLast={i === group.length - 1} />
+                ))}
+              </div>
+            </div>
+          );
+        })
+      )}
     </div>
   );
 }
@@ -37,7 +54,6 @@ function StudentRow({ student, currentMonth, onSelect, isLast }) {
   const isExhausted  = student.type === "횟수제" && student.usedSessions >= student.totalSessions;
   const monthPayment = student.payments.find((p) => p.month === currentMonth);
   const isUnpaid     = !monthPayment || !monthPayment.paid;
-
   return (
     <div
       onClick={() => onSelect(student)}
