@@ -104,9 +104,39 @@ export function DayPicker({ selected, onChange }) {
   );
 }
 
+const CLASS_TYPES = ["유치부", "초등부", "중고등부", "성인반"];
+
+export function ClassTypePicker({ selected, onChange }) {
+  return (
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+      {CLASS_TYPES.map((ct) => {
+        const active = selected === ct;
+        return (
+          <button
+            key={ct}
+            onClick={() => onChange(ct)}
+            style={{
+              padding: "8px 14px", borderRadius: 8,
+              border: "1px solid " + (active ? C.accent : C.border),
+              background: active ? C.accent : "transparent",
+              color: active ? "#fff" : C.inkMuted,
+              fontWeight: 600, fontSize: 14,
+            }}
+          >
+            {ct}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function StudentForm({ form, setForm, onSubmit, submitLabel }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <FormField label="반 구분 *">
+        <ClassTypePicker selected={form.classType} onChange={(classType) => setForm({ ...form, classType })} />
+      </FormField>
       <FormField label="이름 *">
         <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="홍길동" style={inputStyle} />
       </FormField>
