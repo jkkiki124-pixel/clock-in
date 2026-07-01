@@ -15,11 +15,11 @@ export function fmtFullDate(d) {
 
 export function getWeekDates(baseDate) {
   const d = new Date(baseDate);
-  const monday = new Date(d);
-  monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-  return Array.from({ length: 6 }, (_, i) => {
-    const date = new Date(monday);
-    date.setDate(monday.getDate() + i);
+  const sunday = new Date(d);
+  sunday.setDate(d.getDate() - d.getDay());
+  return Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(sunday);
+    date.setDate(sunday.getDate() + i);
     return date;
   });
 }
@@ -28,7 +28,6 @@ export function fmtMonth(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-// ─── 색상 팔레트 ──────────────────────────────────────────
 export const C = {
   bg:           "#F7F4EF",
   surface:      "#FFFFFF",
@@ -45,27 +44,25 @@ export const C = {
   blueLight:    "#EAF1FD",
 };
 
-// ─── 전역 CSS ─────────────────────────────────────────────
 export const globalStyle = `
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Noto Sans KR', sans-serif; background: ${C.bg}; color: ${C.ink}; -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'Noto Sans KR', sans-serif; background: #F7F4EF; color: #2B2318; -webkit-tap-highlight-color: transparent; }
   button { cursor: pointer; font-family: inherit; }
   input, select, textarea { font-family: inherit; }
   ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: ${C.bg}; }
-  ::-webkit-scrollbar-thumb { background: ${C.border}; border-radius: 3px; }
+  ::-webkit-scrollbar-track { background: #F7F4EF; }
+  ::-webkit-scrollbar-thumb { background: #E5DDD4; border-radius: 3px; }
 `;
 
-// ─── 공통 스타일 ──────────────────────────────────────────
 export const inputStyle = {
   width: "100%",
   padding: "10px 12px",
   borderRadius: 8,
-  border: `1px solid ${C.border}`,
+  border: "1px solid #E5DDD4",
   fontSize: 14,
   outline: "none",
-  background: C.bg,
+  background: "#F7F4EF",
 };
 
 export const menuItemStyle = {
@@ -81,7 +78,6 @@ export const menuItemStyle = {
   cursor: "pointer",
 };
 
-// ─── 초기 샘플 데이터 ─────────────────────────────────────
 export const INITIAL_STUDENTS = [
   {
     id: 1,
@@ -96,8 +92,8 @@ export const INITIAL_STUDENTS = [
     memo: "수채화 집중 수업",
     attendance: {},
     payments: [
-      { month: "2026-05", paid: true,  paidAt: "2026-05-02" },
-      { month: "2026-06", paid: true,  paidAt: "2026-06-01" },
+      { month: "2026-05", paid: true, paidAt: "2026-05-02" },
+      { month: "2026-06", paid: true, paidAt: "2026-06-01" },
     ],
   },
   {
@@ -133,7 +129,7 @@ export const INITIAL_STUDENTS = [
     memo: "데생 기초",
     attendance: {},
     payments: [
-      { month: "2026-06", paid: true,  paidAt: "2026-06-05" },
+      { month: "2026-06", paid: true, paidAt: "2026-06-05" },
     ],
   },
   {
@@ -149,7 +145,7 @@ export const INITIAL_STUDENTS = [
     memo: "입시 준비",
     attendance: {},
     payments: [
-      { month: "2026-05", paid: true,  paidAt: "2026-05-01" },
+      { month: "2026-05", paid: true, paidAt: "2026-05-01" },
       { month: "2026-06", paid: false, paidAt: null },
     ],
   },
