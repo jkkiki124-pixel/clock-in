@@ -1,4 +1,4 @@
-// 학생 데이터 훅 — Supabase 연동 버전 (CRUD + 출석/납부 관리, 보강/반 구분 지원)
+// 학생 데이터 훅 — Supabase 연동 버전 (CRUD + 출석/납부 관리, 보강/반 구분/납부방법 지원)
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase.js";
 import { fmtFullDate } from "../constants.js";
@@ -71,7 +71,7 @@ export function useStudents() {
 
       const payments = (paymentRows || [])
         .filter((p) => p.student_id === student.id)
-        .map((p) => ({ month: p.month, paid: p.paid, paidAt: p.paid_at }));
+        .map((p) => ({ month: p.month, paid: p.paid, paidAt: p.paid_at, method: p.method }));
 
       return { ...student, attendance, payments };
     });
@@ -103,20 +103,21 @@ export function useStudents() {
     await loadStudents();
   }
 
-  // 수강료 납부 토글
-  async function togglePayment(studentId, month) {
+  // 수강료 납부 토글 — 날짜와 방법 직접 지정 가능 (지정 안 하면 오늘 날짜로 처리)
+  async function togglePayment(studentId, month, options = {}) {
     const student = students.find((s) => s.id === studentId);
     if (!student) return;
 
     const existing = student.payments.find((p) => p.month === month);
-    const today = fmtFullDate(new Date());
+    const paidAt = options.paidAt || fmtFullDate(new Date());
+    const method = options.method || null;
 
     if (!existing) {
-      await supabase.from("payments").insert({ student_id: studentId, month, paid: true, paid_at: today });
+      await supabase.from("payments").insert({ student_id: studentId, month, paid: true, paid_at: paidAt, method });
     } else if (existing.paid) {
-      await supabase.from("payments").update({ paid: false, paid_at: null }).eq("student_id", studentId).eq("month", month);
+      await supabase.from("payments").update({ paid: false, paid_at: null, method: null }).eq("student_id", studentId).eq("month", month);
     } else {
-      await supabase.from("payments").update({ paid: true, paid_at: today }).eq("student_id", studentId).eq("month", month);
+      await supabase.from("payments").update({ paid: true, paid_at: paidAt, method }).eq("student_id", studentId).eq("month", month);
     }
 
     await loadStudents();
