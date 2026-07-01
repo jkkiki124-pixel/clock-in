@@ -1,4 +1,4 @@
-// 수강료 탭 — 1년 전체 보기 (학생 × 1~12월 표, 클릭 시 납부일/방법 선택)
+// 수강료 탭 — 1년 전체 보기 (학생 × 1~12월 표, 칸 안에 납부일/방법 바로 표시, 클릭 시 수정)
 import { useState } from "react";
 import { C, TODAY, fmtFullDate } from "../constants.js";
 import { Dialog } from "./ui.jsx";
@@ -23,16 +23,16 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
       </div>
 
       <div style={{ fontSize: 12, color: C.inkMuted, marginBottom: 8, paddingLeft: 2 }}>
-        💡 칸을 클릭하면 납부일과 납부 방법을 선택할 수 있습니다
+        💡 칸을 클릭하면 납부일과 납부 방법을 입력·수정할 수 있습니다
       </div>
 
       <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflowX: "auto" }}>
-        <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 760 }}>
+        <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 900 }}>
           <thead>
             <tr style={{ background: C.bg, borderBottom: `2px solid ${C.border}` }}>
               <th style={{ position: "sticky", left: 0, background: C.bg, padding: "10px 12px", fontSize: 12, color: C.inkMuted, textAlign: "left", minWidth: 90, borderRight: `1px solid ${C.border}` }}>학생</th>
               {MONTHS.map((m) => (
-                <th key={m} style={{ padding: "10px 4px", fontSize: 12, color: C.inkMuted, textAlign: "center", minWidth: 56 }}>{m}월</th>
+                <th key={m} style={{ padding: "10px 4px", fontSize: 12, color: C.inkMuted, textAlign: "center", minWidth: 68 }}>{m}월</th>
               ))}
             </tr>
           </thead>
@@ -50,14 +50,23 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
                   const key = monthKey(m);
                   const payment = student.payments.find((p) => p.month === key);
                   const paid = payment && payment.paid;
+                  const dateShort = paid && payment.paidAt ? payment.paidAt.slice(5).replace("-", "/") : null;
 
                   return (
                     <td
                       key={m}
                       onClick={() => setModalInfo({ studentId: student.id, month: key })}
-                      style={{ textAlign: "center", padding: "8px 4px", cursor: "pointer", background: paid ? C.greenLight : "transparent" }}
+                      style={{ textAlign: "center", padding: "6px 4px", cursor: "pointer", background: paid ? C.greenLight : "transparent", minHeight: 52 }}
                     >
-                      {paid ? <span style={{ fontSize: 16 }}>✅</span> : <span style={{ color: C.border, fontSize: 16 }}>○</span>}
+                      {paid ? (
+                        <div>
+                          <div style={{ fontSize: 15 }}>✅</div>
+                          <div style={{ fontSize: 10, color: C.green, fontWeight: 600, marginTop: 1 }}>{dateShort}</div>
+                          {payment.method && <div style={{ fontSize: 10, color: C.inkMuted }}>{payment.method}</div>}
+                        </div>
+                      ) : (
+                        <span style={{ color: C.border, fontSize: 16 }}>○</span>
+                      )}
                     </td>
                   );
                 })}
