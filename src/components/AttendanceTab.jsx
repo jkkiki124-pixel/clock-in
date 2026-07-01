@@ -67,8 +67,9 @@ function WeekView({ students, weekDates, weekOffset, setWeekOffset, toggleAttend
           <div style={{ padding: "10px 8px", fontSize: 12, color: C.inkMuted, fontWeight: 600 }}>학생</div>
           {weekDates.map((d, i) => {
             const isToday = fmtFullDate(d) === todayStr;
-            const isSun = i === 0;
-            const isSat = i === 6;
+           const isSun = i === 6;
+           const isSat = i === 5;
+      
             return (
               <div key={i} style={{ padding: "8px 2px", textAlign: "center", background: isToday ? C.accentLight : "transparent", borderLeft: `1px solid ${C.border}` }}>
                 <div style={{ fontSize: 10, color: isToday ? C.accent : isSun ? "#E04040" : isSat ? C.blue : C.inkMuted, fontWeight: 700 }}>{DAY_NAMES[i]}</div>
