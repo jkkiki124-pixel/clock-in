@@ -3,14 +3,12 @@ import { useState, useMemo } from "react";
 import { C, TODAY, fmtDate, fmtFullDate, getWeekDates, KR_DAYS } from "../constants.js";
 import { SummaryCard, EmptyState } from "./ui.jsx";
 
-// ─── 출석부 탭 (뷰 전환 포함) ─────────────────────────────
 export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, toggleAttendance, onSelectStudent }) {
   const [viewMode, setViewMode] = useState("week");
   const [calMonth, setCalMonth] = useState({ year: TODAY.getFullYear(), month: TODAY.getMonth() });
 
   return (
     <div>
-      {/* 뷰 전환 토글 */}
       <div style={{ display: "flex", background: C.surface, borderRadius: 10, padding: 4, marginBottom: 12, border: `1px solid ${C.border}`, gap: 4 }}>
         {[{ id: "week", label: "📋 주간 출석부" }, { id: "calendar", label: "📅 달력 보기" }].map((v) => (
           <button
@@ -36,18 +34,17 @@ export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, 
   );
 }
 
-// ─── 주간 뷰 ──────────────────────────────────────────────
 function WeekView({ students, weekDates, weekOffset, setWeekOffset, toggleAttendance, onSelectStudent }) {
-  const todayStr  = fmtFullDate(TODAY);
-  const weekLabel = `${weekDates[0].getMonth() + 1}/${weekDates[0].getDate()} ~ ${weekDates[5].getMonth() + 1}/${weekDates[5].getDate()}`;
+  const todayStr = fmtFullDate(TODAY);
+  const weekLabel = `${weekDates[0].getMonth() + 1}/${weekDates[0].getDate()} ~ ${weekDates[6].getMonth() + 1}/${weekDates[6].getDate()}`;
+  const DAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
 
-  const totalChecks   = students.reduce((sum, s) => sum + weekDates.filter((d) => s.attendance[fmtFullDate(d)]).length, 0);
+  const totalChecks = students.reduce((sum, s) => sum + weekDates.filter((d) => s.attendance[fmtFullDate(d)]).length, 0);
   const sessionStudents = students.filter((s) => s.type === "횟수제");
-  const exhausted     = sessionStudents.filter((s) => s.usedSessions >= s.totalSessions);
+  const exhausted = sessionStudents.filter((s) => s.usedSessions >= s.totalSessions);
 
   return (
     <div>
-      {/* 주 네비게이션 */}
       <NavBar
         label={weekLabel}
         subLabel={weekOffset === 0 ? "이번 주" : null}
@@ -57,7 +54,6 @@ function WeekView({ students, weekDates, weekOffset, setWeekOffset, toggleAttend
         resetLabel="이번 주로"
       />
 
-      {/* 요약 카드 */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, margin: "12px 0" }}>
         <SummaryCard label="이번 주 출석" value={totalChecks} color={C.green} bg={C.greenLight} icon="✅" />
         <SummaryCard label="횟수제 학생" value={`${sessionStudents.length}명`} color={C.blue} bg={C.blueLight} icon="🔢" />
@@ -66,24 +62,22 @@ function WeekView({ students, weekDates, weekOffset, setWeekOffset, toggleAttend
           bg={exhausted.length > 0 ? C.accentLight : C.bg} icon="⚠️" />
       </div>
 
-      {/* 출석 그리드 */}
       <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}>
-        {/* 날짜 헤더 */}
-        <div style={{ display: "grid", gridTemplateColumns: "120px repeat(6, 1fr)", borderBottom: `2px solid ${C.border}`, background: C.bg }}>
-          <div style={{ padding: "10px 12px", fontSize: 12, color: C.inkMuted, fontWeight: 600 }}>학생</div>
+        <div style={{ display: "grid", gridTemplateColumns: "100px repeat(7, 1fr)", borderBottom: `2px solid ${C.border}`, background: C.bg }}>
+          <div style={{ padding: "10px 8px", fontSize: 12, color: C.inkMuted, fontWeight: 600 }}>학생</div>
           {weekDates.map((d, i) => {
             const isToday = fmtFullDate(d) === todayStr;
-            const dayName = ["월", "화", "수", "목", "금", "토"][i];
+            const isSun = i === 0;
+            const isSat = i === 6;
             return (
-              <div key={i} style={{ padding: "8px 4px", textAlign: "center", background: isToday ? C.accentLight : "transparent", borderLeft: `1px solid ${C.border}` }}>
-                <div style={{ fontSize: 11, color: isToday ? C.accent : C.inkMuted, fontWeight: isToday ? 700 : 500 }}>{dayName}</div>
-                <div style={{ fontSize: 14, fontWeight: isToday ? 700 : 600, color: isToday ? C.accent : C.ink }}>{fmtDate(d)}</div>
+              <div key={i} style={{ padding: "8px 2px", textAlign: "center", background: isToday ? C.accentLight : "transparent", borderLeft: `1px solid ${C.border}` }}>
+                <div style={{ fontSize: 10, color: isToday ? C.accent : isSun ? "#E04040" : isSat ? C.blue : C.inkMuted, fontWeight: 700 }}>{DAY_NAMES[i]}</div>
+                <div style={{ fontSize: 12, fontWeight: isToday ? 700 : 600, color: isToday ? C.accent : C.ink }}>{fmtDate(d)}</div>
               </div>
             );
           })}
         </div>
 
-        {/* 학생 행 */}
         {students.map((student, idx) => (
           <WeekRow
             key={student.id}
@@ -102,33 +96,31 @@ function WeekView({ students, weekDates, weekOffset, setWeekOffset, toggleAttend
 
 function WeekRow({ student, weekDates, todayStr, onToggle, onSelect, isLast }) {
   const isExhausted = student.type === "횟수제" && student.usedSessions >= student.totalSessions;
-  const remaining   = student.type === "횟수제" ? student.totalSessions - student.usedSessions : null;
-  const DAY_NAMES   = ["월", "화", "수", "목", "금", "토"];
+  const remaining = student.type === "횟수제" ? student.totalSessions - student.usedSessions : null;
+  const DAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "120px repeat(6, 1fr)", borderBottom: isLast ? "none" : `1px solid ${C.border}`, background: isExhausted ? "#fff8f6" : C.surface }}>
-      {/* 이름 */}
-      <div onClick={() => onSelect(student)} style={{ padding: "10px", cursor: "pointer", display: "flex", flexDirection: "column", justifyContent: "center", gap: 3, borderRight: `1px solid ${C.border}` }}>
-        <div style={{ fontWeight: 600, fontSize: 14 }}>{student.name}</div>
-        <div style={{ fontSize: 11, color: C.inkMuted }}>{student.grade}</div>
+    <div style={{ display: "grid", gridTemplateColumns: "100px repeat(7, 1fr)", borderBottom: isLast ? "none" : `1px solid ${C.border}`, background: isExhausted ? "#fff8f6" : C.surface }}>
+      <div onClick={() => onSelect(student)} style={{ padding: "8px", cursor: "pointer", display: "flex", flexDirection: "column", justifyContent: "center", gap: 3, borderRight: `1px solid ${C.border}` }}>
+        <div style={{ fontWeight: 600, fontSize: 13 }}>{student.name}</div>
+        <div style={{ fontSize: 10, color: C.inkMuted }}>{student.grade}</div>
         {student.type === "횟수제" && (
-          <div style={{ fontSize: 11, fontWeight: 700, color: isExhausted ? C.accent : C.green, background: isExhausted ? C.accentLight : C.greenLight, borderRadius: 4, padding: "1px 5px", display: "inline-block" }}>
-            {isExhausted ? "❗ 소진" : `잔여 ${remaining}회`}
+          <div style={{ fontSize: 10, fontWeight: 700, color: isExhausted ? C.accent : C.green, background: isExhausted ? C.accentLight : C.greenLight, borderRadius: 4, padding: "1px 4px", display: "inline-block" }}>
+            {isExhausted ? "❗소진" : `잔여${remaining}회`}
           </div>
         )}
         {student.type === "월정액" && (
-          <div style={{ fontSize: 10, color: C.blue, background: C.blueLight, borderRadius: 4, padding: "1px 5px", display: "inline-block" }}>월정액</div>
+          <div style={{ fontSize: 9, color: C.blue, background: C.blueLight, borderRadius: 4, padding: "1px 4px", display: "inline-block" }}>월정액</div>
         )}
       </div>
 
-      {/* 날짜 셀 */}
       {weekDates.map((d, i) => {
-        const dateStr     = fmtFullDate(d);
-        const dayName     = DAY_NAMES[i];
+        const dateStr = fmtFullDate(d);
+        const dayName = DAY_NAMES[i];
         const isScheduled = student.days.includes(dayName);
-        const isChecked   = !!student.attendance[dateStr];
-        const isToday     = dateStr === todayStr;
-        const canCheck    = !isExhausted || isChecked;
+        const isChecked = !!student.attendance[dateStr];
+        const isToday = dateStr === todayStr;
+        const canCheck = !isExhausted || isChecked;
 
         return (
           <div
@@ -137,13 +129,13 @@ function WeekRow({ student, weekDates, todayStr, onToggle, onSelect, isLast }) {
               borderLeft: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center",
               background: isToday ? "#fffaf9" : isChecked ? C.greenLight : isScheduled ? "#fafafa" : "transparent",
               cursor: isScheduled && canCheck ? "pointer" : "default",
-              minHeight: 56, transition: "background 0.1s",
+              minHeight: 52, transition: "background 0.1s",
             }}
             onClick={() => isScheduled && canCheck && onToggle(student.id, dateStr)}
           >
-            {isChecked ? <span style={{ fontSize: 22 }}>✅</span>
-              : isScheduled ? <span style={{ fontSize: 20, color: C.border }}>○</span>
-              : <span style={{ color: "#eee", fontSize: 14 }}>—</span>}
+            {isChecked ? <span style={{ fontSize: 20 }}>✅</span>
+              : isScheduled ? <span style={{ fontSize: 18, color: C.border }}>○</span>
+              : <span style={{ color: "#eee", fontSize: 12 }}>—</span>}
           </div>
         );
       })}
@@ -151,7 +143,6 @@ function WeekRow({ student, weekDates, todayStr, onToggle, onSelect, isLast }) {
   );
 }
 
-// ─── 달력 뷰 ──────────────────────────────────────────────
 function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSelectStudent }) {
   const { year, month } = calMonth;
   const [selectedDate, setSelectedDate] = useState(null);
@@ -159,11 +150,7 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
 
   const firstDay = new Date(year, month, 1).getDay();
   const lastDate = new Date(year, month + 1, 0).getDate();
-  const cells    = [
-    ...Array(firstDay).fill(null),
-    ...Array.from({ length: lastDate }, (_, i) => i + 1),
-  ];
-
+  const cells = [...Array(firstDay).fill(null), ...Array.from({ length: lastDate }, (_, i) => i + 1)];
   const isCurrentMonth = year === TODAY.getFullYear() && month === TODAY.getMonth();
 
   function changeMonth(delta) {
@@ -174,13 +161,8 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
 
   function getDateInfo(day) {
     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    const krDay   = KR_DAYS[new Date(year, month, day).getDay()];
-    return {
-      dateStr,
-      krDay,
-      scheduled: students.filter((s) => s.days.includes(krDay)),
-      attended:  students.filter((s) => s.attendance[dateStr]),
-    };
+    const krDay = KR_DAYS[new Date(year, month, day).getDay()];
+    return { dateStr, krDay, scheduled: students.filter((s) => s.days.includes(krDay)), attended: students.filter((s) => s.attendance[dateStr]) };
   }
 
   const selectedInfo = useMemo(() => {
@@ -188,12 +170,7 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
     const [y, m2, d] = selectedDate.split("-").map(Number);
     const krDay = KR_DAYS[new Date(y, m2 - 1, d).getDay()];
     const scheduled = students.filter((s) => s.days.includes(krDay));
-    return {
-      krDay,
-      scheduled,
-      attended:    scheduled.filter((s) =>  s.attendance[selectedDate]),
-      notAttended: scheduled.filter((s) => !s.attendance[selectedDate]),
-    };
+    return { krDay, scheduled, attended: scheduled.filter((s) => s.attendance[selectedDate]), notAttended: scheduled.filter((s) => !s.attendance[selectedDate]) };
   }, [selectedDate, students]);
 
   return (
@@ -208,45 +185,31 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
       />
 
       <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden", margin: "12px 0" }}>
-        {/* 요일 헤더 */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: `1px solid ${C.border}`, background: C.bg }}>
           {["일","월","화","수","목","금","토"].map((d, i) => (
             <div key={d} style={{ textAlign: "center", padding: "8px 2px", fontSize: 12, fontWeight: 700, color: i===0 ? "#E04040" : i===6 ? C.blue : C.inkMuted }}>{d}</div>
           ))}
         </div>
 
-        {/* 날짜 셀 */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
           {cells.map((day, idx) => {
             if (!day) return <div key={`e${idx}`} style={{ minHeight: 64, borderRight: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }} />;
-            const info       = getDateInfo(day);
-            const isToday    = info.dateStr === todayStr;
+            const info = getDateInfo(day);
+            const isToday = info.dateStr === todayStr;
             const isSelected = info.dateStr === selectedDate;
-            const colIdx     = idx % 7;
+            const colIdx = idx % 7;
 
             return (
-              <div
-                key={day}
-                onClick={() => setSelectedDate(isSelected ? null : info.dateStr)}
-                style={{
-                  minHeight: 64, padding: "6px 4px",
-                  borderRight: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`,
-                  cursor: info.scheduled.length > 0 ? "pointer" : "default",
-                  background: isSelected ? C.accentLight : isToday ? "#fffaf8" : C.surface,
-                  transition: "background 0.12s",
-                }}
+              <div key={day} onClick={() => setSelectedDate(isSelected ? null : info.dateStr)}
+                style={{ minHeight: 64, padding: "6px 4px", borderRight: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, cursor: info.scheduled.length > 0 ? "pointer" : "default", background: isSelected ? C.accentLight : isToday ? "#fffaf8" : C.surface, transition: "background 0.12s" }}
               >
-                <div style={{ fontSize: 13, fontWeight: isToday ? 700 : 500, marginBottom: 4, display: "flex", alignItems: "center", gap: 3,
-                  color: isToday ? C.accent : colIdx===0 ? "#E04040" : colIdx===6 ? C.blue : C.ink }}>
-                  {day}
-                  {isToday && <span style={{ width: 5, height: 5, borderRadius: "50%", background: C.accent, display: "inline-block" }} />}
+                <div style={{ fontSize: 13, fontWeight: isToday ? 700 : 500, marginBottom: 4, display: "flex", alignItems: "center", gap: 3, color: isToday ? C.accent : colIdx===0 ? "#E04040" : colIdx===6 ? C.blue : C.ink }}>
+                  {day}{isToday && <span style={{ width: 5, height: 5, borderRadius: "50%", background: C.accent, display: "inline-block" }} />}
                 </div>
                 {info.scheduled.length > 0 && (
                   <>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
-                      {info.scheduled.map((s) => (
-                        <div key={s.id} style={{ width: 7, height: 7, borderRadius: "50%", background: s.attendance[info.dateStr] ? C.green : C.border }} />
-                      ))}
+                      {info.scheduled.map((s) => <div key={s.id} style={{ width: 7, height: 7, borderRadius: "50%", background: s.attendance[info.dateStr] ? C.green : C.border }} />)}
                     </div>
                     <div style={{ fontSize: 10, color: C.inkMuted, marginTop: 3 }}>
                       <span style={{ color: C.green, fontWeight: 700 }}>{info.attended.length}</span>/{info.scheduled.length}
@@ -259,7 +222,6 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
         </div>
       </div>
 
-      {/* 범례 */}
       <div style={{ display: "flex", gap: 12, marginBottom: 12, padding: "0 4px" }}>
         {[{ dot: C.green, label: "출석" }, { dot: C.border, label: "미출석" }].map((l) => (
           <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: C.inkMuted }}>
@@ -269,7 +231,6 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
         <div style={{ fontSize: 12, color: C.inkMuted }}>날짜를 탭하면 상세 확인</div>
       </div>
 
-      {/* 날짜 상세 패널 */}
       {selectedDate && selectedInfo && (
         <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}>
           <div style={{ background: C.accent, color: "#fff", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -312,7 +273,7 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
 
 function DayRow({ student, dateStr, checked, onToggle, onSelect, isLast, disabled }) {
   const isExhausted = student.type === "횟수제" && student.usedSessions >= student.totalSessions;
-  const remaining   = student.type === "횟수제" ? student.totalSessions - student.usedSessions : null;
+  const remaining = student.type === "횟수제" ? student.totalSessions - student.usedSessions : null;
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 16px", borderBottom: isLast ? "none" : `1px solid ${C.border}`, background: checked ? "#f9fffc" : C.surface }}>
@@ -325,11 +286,7 @@ function DayRow({ student, dateStr, checked, onToggle, onSelect, isLast, disable
             <div style={{ fontWeight: 600, fontSize: 14 }}>{student.name}</div>
             <div style={{ fontSize: 11, color: C.inkMuted }}>
               {student.grade}
-              {student.type === "횟수제" && (
-                <span style={{ marginLeft: 6, color: isExhausted ? C.accent : C.green, fontWeight: 600 }}>
-                  {isExhausted ? "❗ 소진" : `잔여 ${remaining}회`}
-                </span>
-              )}
+              {student.type === "횟수제" && <span style={{ marginLeft: 6, color: isExhausted ? C.accent : C.green, fontWeight: 600 }}>{isExhausted ? "❗ 소진" : `잔여 ${remaining}회`}</span>}
             </div>
           </div>
         </div>
@@ -344,7 +301,6 @@ function DayRow({ student, dateStr, checked, onToggle, onSelect, isLast, disable
   );
 }
 
-// ─── 공통 네비게이션 바 ────────────────────────────────────
 function NavBar({ label, subLabel, onPrev, onNext, onReset, resetLabel }) {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.surface, borderRadius: 12, padding: "12px 16px", border: `1px solid ${C.border}` }}>
@@ -352,9 +308,7 @@ function NavBar({ label, subLabel, onPrev, onNext, onReset, resetLabel }) {
       <div style={{ textAlign: "center" }}>
         <div style={{ fontWeight: 700, fontSize: 16 }}>{label}</div>
         {subLabel && <div style={{ fontSize: 12, color: C.accent, fontWeight: 600 }}>{subLabel}</div>}
-        {!subLabel && onReset && (
-          <button onClick={onReset} style={{ fontSize: 11, color: C.accent, background: "none", border: "none", textDecoration: "underline" }}>{resetLabel}</button>
-        )}
+        {!subLabel && onReset && <button onClick={onReset} style={{ fontSize: 11, color: C.accent, background: "none", border: "none", textDecoration: "underline" }}>{resetLabel}</button>}
       </div>
       <button onClick={onNext} style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 14px", color: C.inkMuted, fontSize: 18 }}>›</button>
     </div>
