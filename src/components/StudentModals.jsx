@@ -7,7 +7,7 @@ const BLANK_FORM = {
   name: "", grade: "", phone: "", parentPhone: "",
   registeredAt: fmtFullDate(TODAY),
   type: "월정액", fee: 150000, totalSessions: 10, usedSessions: 0,
-  days: [], memo: "",
+  days: [], memo: "", classType: "초등부",
 };
 
 // ─── 학생 상세 모달 ────────────────────────────────────────
@@ -57,7 +57,7 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
         <div>
           <div style={{ fontWeight: 700, fontSize: 20 }}>{student.name}</div>
           <div style={{ fontSize: 13, color: C.inkMuted }}>
-            {student.grade} · 등록일 {student.registeredAt}
+            {student.classType} · {student.grade} · 등록일 {student.registeredAt}
           </div>
         </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
