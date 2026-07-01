@@ -37,7 +37,7 @@ export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, 
 function WeekView({ students, weekDates, weekOffset, setWeekOffset, toggleAttendance, onSelectStudent }) {
   const todayStr = fmtFullDate(TODAY);
   const weekLabel = `${weekDates[0].getMonth() + 1}/${weekDates[0].getDate()} ~ ${weekDates[6].getMonth() + 1}/${weekDates[6].getDate()}`;
-  const DAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
+  const DAY_NAMES = ["월", "화", "수", "목", "금", "토", "일"];
 
   const totalChecks = students.reduce((sum, s) => sum + weekDates.filter((d) => s.attendance[fmtFullDate(d)]).length, 0);
   const sessionStudents = students.filter((s) => s.type === "횟수제");
@@ -97,8 +97,8 @@ function WeekView({ students, weekDates, weekOffset, setWeekOffset, toggleAttend
 function WeekRow({ student, weekDates, todayStr, onToggle, onSelect, isLast }) {
   const isExhausted = student.type === "횟수제" && student.usedSessions >= student.totalSessions;
   const remaining = student.type === "횟수제" ? student.totalSessions - student.usedSessions : null;
-  const DAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
-
+  const DAY_NAMES = ["월", "화", "수", "목", "금", "토", "일"];
+  
   return (
     <div style={{ display: "grid", gridTemplateColumns: "100px repeat(7, 1fr)", borderBottom: isLast ? "none" : `1px solid ${C.border}`, background: isExhausted ? "#fff8f6" : C.surface }}>
       <div onClick={() => onSelect(student)} style={{ padding: "8px", cursor: "pointer", display: "flex", flexDirection: "column", justifyContent: "center", gap: 3, borderRight: `1px solid ${C.border}` }}>
@@ -186,7 +186,7 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
 
       <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden", margin: "12px 0" }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: `1px solid ${C.border}`, background: C.bg }}>
-          {["일","월","화","수","목","금","토"].map((d, i) => (
+          {["월","화","수","목","금","토","일"].map((d, i) => (
             <div key={d} style={{ textAlign: "center", padding: "8px 2px", fontSize: 12, fontWeight: 700, color: i===0 ? "#E04040" : i===6 ? C.blue : C.inkMuted }}>{d}</div>
           ))}
         </div>
