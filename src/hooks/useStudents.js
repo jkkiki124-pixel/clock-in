@@ -103,21 +103,38 @@ export function useStudents() {
     await loadStudents();
   }
 
-  // 수강료 납부 토글 — 날짜와 방법 직접 지정 가능 (지정 안 하면 오늘 날짜로 처리)
-  async function togglePayment(studentId, month, options = {}) {
+  // 수강료 납부 토글 (기존 방식 — 상세 모달 등에서 사용)
+  async function togglePayment(studentId, month) {
     const student = students.find((s) => s.id === studentId);
     if (!student) return;
 
     const existing = student.payments.find((p) => p.month === month);
-    const paidAt = options.paidAt || fmtFullDate(new Date());
-    const method = options.method || null;
+    const today = fmtFullDate(new Date());
 
     if (!existing) {
-      await supabase.from("payments").insert({ student_id: studentId, month, paid: true, paid_at: paidAt, method });
+      await supabase.from("payments").insert({ student_id: studentId, month, paid: true, paid_at: today });
     } else if (existing.paid) {
       await supabase.from("payments").update({ paid: false, paid_at: null, method: null }).eq("student_id", studentId).eq("month", month);
     } else {
+      await supabase.from("payments").update({ paid: true, paid_at: today }).eq("student_id", studentId).eq("month", month);
+    }
+
+    await loadStudents();
+  }
+
+  // 수강료 납부 정보를 날짜/방법까지 직접 지정해서 저장 (1년 전체 보기 화면에서 사용)
+  async function setPayment(studentId, month, { paid, paidAt, method }) {
+    const student = students.find((s) => s.id === studentId);
+    if (!student) return;
+
+    const existing = student.payments.find((p) => p.month === month);
+
+    if (!paid) {
+      await supabase.from("payments").delete().eq("student_id", studentId).eq("month", month);
+    } else if (existing) {
       await supabase.from("payments").update({ paid: true, paid_at: paidAt, method }).eq("student_id", studentId).eq("month", month);
+    } else {
+      await supabase.from("payments").insert({ student_id: studentId, month, paid: true, paid_at: paidAt, method });
     }
 
     await loadStudents();
@@ -141,5 +158,5 @@ export function useStudents() {
     await loadStudents();
   }
 
-  return { students, loading, toggleAttendance, togglePayment, addStudent, updateStudent, deleteStudent };
+  return { students, loading, toggleAttendance, togglePayment, setPayment, addStudent, updateStudent, deleteStudent };
 }
