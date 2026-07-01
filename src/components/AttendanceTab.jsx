@@ -39,8 +39,7 @@ function WeekView({ students, weekDates, weekOffset, setWeekOffset, toggleAttend
   const weekLabel = `${weekDates[0].getMonth() + 1}/${weekDates[0].getDate()} ~ ${weekDates[6].getMonth() + 1}/${weekDates[6].getDate()}`;
   const DAY_NAMES = ["월", "화", "수", "목", "금", "토", "일"];
 
-  const totalChecks = students.reduce((sum, s) => sum + weekDates.filter((d) => s.attendance[fmtFullDate(d)]).length, 0);
-  const sessionStudents = students.filter((s) => s.type === "횟수제");
+ const sessionStudents = students.filter((s) => s.type === "횟수제");
   const exhausted = sessionStudents.filter((s) => s.usedSessions >= s.totalSessions);
 
   return (
