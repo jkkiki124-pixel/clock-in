@@ -15,11 +15,11 @@ export function fmtFullDate(d) {
 
 export function getWeekDates(baseDate) {
   const d = new Date(baseDate);
-  const sunday = new Date(d);
-  sunday.setDate(d.getDate() - d.getDay());
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
   return Array.from({ length: 7 }, (_, i) => {
-    const date = new Date(sunday);
-    date.setDate(sunday.getDate() + i);
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + i);
     return date;
   });
 }
