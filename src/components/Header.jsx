@@ -15,9 +15,10 @@ export function Header({ tab, setTab, onAddStudent, onLogout, onChangePw }) {
   }, []);
 
   const tabs = [
-    { id: "attendance", label: "출석부",   icon: "✏️" },
-    { id: "payment",    label: "수강료",   icon: "💰" },
-    { id: "students",   label: "학생 목록", icon: "👥" },
+    { id: "attendance", label: "출석부",  icon: "✏️" },
+    { id: "payment",    label: "수강료",  icon: "💰" },
+    { id: "students",   label: "학생목록", icon: "👥" },
+    { id: "staff",      label: "출근부",  icon: "👩‍🏫" },
   ];
 
   return (
@@ -28,7 +29,6 @@ export function Header({ tab, setTab, onAddStudent, onLogout, onChangePw }) {
       boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
     }}>
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 12px" }}>
-        {/* 상단 바 */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0 0" }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -52,7 +52,6 @@ export function Header({ tab, setTab, onAddStudent, onLogout, onChangePw }) {
               + 학생 추가
             </button>
 
-            {/* 관리자 메뉴 */}
             <div ref={menuRef} style={{ position: "relative" }}>
               <button
                 onClick={() => setMenuOpen((v) => !v)}
@@ -61,7 +60,6 @@ export function Header({ tab, setTab, onAddStudent, onLogout, onChangePw }) {
                   border: `1px solid ${C.border}`, borderRadius: 8,
                   padding: "8px 10px", fontSize: 18, color: C.inkMuted,
                 }}
-                title="관리자 메뉴"
               >
                 ⚙️
               </button>
@@ -91,17 +89,16 @@ export function Header({ tab, setTab, onAddStudent, onLogout, onChangePw }) {
           </div>
         </div>
 
-        {/* 탭 */}
-        <div style={{ display: "flex", gap: 4, paddingTop: 8 }}>
+        <div style={{ display: "flex", gap: 2, paddingTop: 8 }}>
           {tabs.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
               style={{
-                flex: 1, padding: "10px 4px", border: "none", background: "transparent",
+                flex: 1, padding: "9px 2px", border: "none", background: "transparent",
                 borderBottom: tab === t.id ? `3px solid ${C.accent}` : "3px solid transparent",
                 color: tab === t.id ? C.accent : C.inkMuted,
-                fontWeight: tab === t.id ? 700 : 500, fontSize: 14, transition: "all 0.15s",
+                fontWeight: tab === t.id ? 700 : 500, fontSize: 12, transition: "all 0.15s",
               }}
             >
               {t.icon} {t.label}
