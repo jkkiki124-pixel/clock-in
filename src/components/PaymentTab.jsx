@@ -63,6 +63,7 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
                           <div style={{ fontSize: 18 }}>✅</div>
                           <div style={{ fontSize: 12, color: C.green, fontWeight: 700, lineHeight: 1.5 }}>{dateShort}</div>
                           {payment.method && <div style={{ fontSize: 12, color: C.inkMuted, fontWeight: 600, lineHeight: 1.5 }}>{payment.method}</div>}
+                          <div style={{ fontSize: 11, color: C.ink, fontWeight: 700, lineHeight: 1.5 }}>{(student.fee / 10000).toFixed(0)}만</div>
                         </div>
                       ) : (
                         <span style={{ color: C.border, fontSize: 17 }}>○</span>
