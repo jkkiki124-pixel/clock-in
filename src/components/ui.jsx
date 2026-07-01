@@ -131,6 +131,14 @@ export function ClassTypePicker({ selected, onChange }) {
   );
 }
 
+const GRADE_OPTIONS = [
+  "5세", "6세", "7세",
+  "초1", "초2", "초3", "초4", "초5", "초6",
+  "중1", "중2", "중3",
+  "고1", "고2", "고3",
+  "성인",
+];
+
 export function StudentForm({ form, setForm, onSubmit, submitLabel }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -141,7 +149,12 @@ export function StudentForm({ form, setForm, onSubmit, submitLabel }) {
         <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="홍길동" style={inputStyle} />
       </FormField>
       <FormField label="학년">
-        <input value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value })} placeholder="초3, 중1 등" style={inputStyle} />
+        <select value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value })} style={inputStyle}>
+          <option value="">선택 안 함</option>
+          {GRADE_OPTIONS.map((g) => (
+            <option key={g} value={g}>{g}</option>
+          ))}
+        </select>
       </FormField>
       <FormField label="연락처">
         <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="010-0000-0000" style={inputStyle} />
