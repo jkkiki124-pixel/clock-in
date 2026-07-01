@@ -30,7 +30,7 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
         <table style={{ borderCollapse: "collapse", width: "100%", tableLayout: "fixed" }}>
           <thead>
             <tr style={{ background: C.bg, borderBottom: `2px solid ${C.border}` }}>
-              <th style={{ width: 60, padding: "10px 4px", fontSize: 12, color: C.inkMuted, textAlign: "left", borderRight: `1px solid ${C.border}` }}>학생</th>
+              <th style={{ width: 60, padding: "10px 4px", fontSize: 12, color: C.inkMuted, textAlign: "center", borderRight: `1px solid ${C.border}` }}>학생</th>
               {MONTHS.map((m) => (
                 <th key={m} style={{ padding: "10px 1px", fontSize: 11, color: C.inkMuted, textAlign: "center" }}>{m}월</th>
               ))}
@@ -41,7 +41,7 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
               <tr key={student.id} style={{ borderBottom: idx === students.length - 1 ? "none" : `1px solid ${C.border}` }}>
                 <td
                   onClick={() => onSelectStudent(student)}
-                  style={{ padding: "10px 4px", cursor: "pointer", borderRight: `1px solid ${C.border}`, overflow: "hidden" }}
+                  style={{ padding: "10px 4px", cursor: "pointer", borderRight: `1px solid ${C.border}`, overflow: "hidden", textAlign: "center" }}
                 >
                   <div style={{ fontWeight: 800, fontSize: 16, color: C.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{student.name}</div>
                   <div style={{ fontSize: 10, color: C.inkMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{student.grade}</div>
