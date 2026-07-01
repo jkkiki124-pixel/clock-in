@@ -2,8 +2,8 @@
 
 // ─── 날짜 ─────────────────────────────────────────────────
 export const TODAY = new Date();
-export const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
-export const KR_DAYS = ["일", "월", "화", "수", "목", "금", "토"];
+export const WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
+export const KR_DAYS = ["월", "화", "수", "목", "금", "토", "일"];
 
 export function fmtDate(d) {
   return `${d.getMonth() + 1}/${d.getDate()}`;
