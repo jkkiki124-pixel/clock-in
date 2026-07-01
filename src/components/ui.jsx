@@ -139,6 +139,8 @@ const GRADE_OPTIONS = [
   "성인",
 ];
 
+const FEE_OPTIONS = [80000, 100000, 120000, 130000, 140000, 170000];
+
 export function StudentForm({ form, setForm, onSubmit, submitLabel }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -171,8 +173,12 @@ export function StudentForm({ form, setForm, onSubmit, submitLabel }) {
           <option value="횟수제">횟수제</option>
         </select>
       </FormField>
-      <FormField label="수강료 (원)">
-        <input type="number" value={form.fee} onChange={(e) => setForm({ ...form, fee: Number(e.target.value) })} style={inputStyle} />
+      <FormField label="수강료">
+        <select value={form.fee} onChange={(e) => setForm({ ...form, fee: Number(e.target.value) })} style={inputStyle}>
+          {FEE_OPTIONS.map((f) => (
+            <option key={f} value={f}>{f.toLocaleString()}원</option>
+          ))}
+        </select>
       </FormField>
       {form.type === "횟수제" && (
         <FormField label="총 횟수">
