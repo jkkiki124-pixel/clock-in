@@ -1,4 +1,4 @@
-// 출석부 탭 — 주간 그리드 뷰 + 달력 뷰
+// 출석부 탭 — 주간 그리드 뷰 + 달력 뷰 (보강 체크 지원)
 import { useState, useMemo } from "react";
 import { C, TODAY, fmtDate, fmtFullDate, getWeekDates, KR_DAYS } from "../constants.js";
 import { SummaryCard, EmptyState } from "./ui.jsx";
@@ -62,6 +62,10 @@ function WeekView({ students, weekDates, weekOffset, setWeekOffset, toggleAttend
           bg={exhausted.length > 0 ? C.accentLight : C.bg} icon="⚠️" />
       </div>
 
+      <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "0 0 12px 4px", fontSize: 11, color: C.inkMuted }}>
+        <span>💡 수업 요일이 아닌 칸을 클릭하면 <b style={{ color: C.yellow }}>보강</b>으로 표시됩니다</span>
+      </div>
+
       <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}>
         <div style={{ display: "grid", gridTemplateColumns: "100px repeat(7, 1fr)", borderBottom: `2px solid ${C.border}`, background: C.bg }}>
           <div style={{ padding: "10px 8px", fontSize: 12, color: C.inkMuted, fontWeight: 600 }}>학생</div>
@@ -119,22 +123,25 @@ function WeekRow({ student, weekDates, todayStr, onToggle, onSelect, isLast }) {
         const dateStr = fmtFullDate(d);
         const dayName = DAY_NAMES[i];
         const isScheduled = student.days.includes(dayName);
-        const isChecked = !!student.attendance[dateStr];
+        const status = student.attendance[dateStr]; // true | "makeup" | undefined
+        const isChecked = status === true;
+        const isMakeup = status === "makeup";
         const isToday = dateStr === todayStr;
-        const canCheck = !isExhausted || isChecked;
+        const canCheck = !isExhausted || isChecked || isMakeup;
 
         return (
           <div
             key={i}
             style={{
               borderLeft: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center",
-              background: isToday ? "#fffaf9" : isChecked ? C.greenLight : isScheduled ? "#fafafa" : "transparent",
-              cursor: isScheduled && canCheck ? "pointer" : "default",
+              background: isToday && !isChecked && !isMakeup ? "#fffaf9" : isChecked ? C.greenLight : isMakeup ? C.yellowLight : isScheduled ? "#fafafa" : "transparent",
+              cursor: canCheck ? "pointer" : "default",
               minHeight: 52, transition: "background 0.1s",
             }}
-            onClick={() => isScheduled && canCheck && onToggle(student.id, dateStr)}
+            onClick={() => canCheck && onToggle(student.id, dateStr, !isScheduled)}
           >
             {isChecked ? <span style={{ fontSize: 20 }}>✅</span>
+              : isMakeup ? <span style={{ fontSize: 10, fontWeight: 700, color: C.yellow }}>보강</span>
               : isScheduled ? <span style={{ fontSize: 18, color: C.border }}>○</span>
               : <span style={{ color: "#eee", fontSize: 12 }}>—</span>}
           </div>
