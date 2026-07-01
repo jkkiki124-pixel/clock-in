@@ -43,7 +43,7 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
                   onClick={() => onSelectStudent(student)}
                   style={{ padding: "10px 4px", cursor: "pointer", borderRight: `1px solid ${C.border}`, overflow: "hidden" }}
                 >
-                  <div style={{ fontWeight: 800, fontSize: 18, color: C.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{student.name}</div>
+                  <div style={{ fontWeight: 800, fontSize: 20, color: C.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{student.name}</div>
                   <div style={{ fontSize: 10, color: C.inkMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{student.grade}</div>
                 </td>
                 {MONTHS.map((m) => {
