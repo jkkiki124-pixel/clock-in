@@ -16,8 +16,8 @@ export default function App() {
   // ── 인증
   const { authed, isFirstRun, changePwOpen, setChangePwOpen, login, logout, changePw } = useAuth();
 
-  // ── 학생 데이터 (localStorage 영구저장)
-  const { students, toggleAttendance, togglePayment, addStudent, updateStudent, deleteStudent } = useStudents();
+  // ── 학생 데이터 (Supabase 영구저장)
+  const { students, toggleAttendance, togglePayment, setPayment, addStudent, updateStudent, deleteStudent } = useStudents();
 
   // ── 보조요원 데이터
   const { staff, setAttendance, addStaff, updateStaff, deleteStaff } = useStaff();
@@ -79,7 +79,7 @@ export default function App() {
           {tab === "payment" && (
             <PaymentTab
               students={students}
-              togglePayment={togglePayment}
+              setPayment={setPayment}
               onSelectStudent={handleSelectStudent}
             />
           )}
