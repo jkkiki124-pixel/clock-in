@@ -188,7 +188,7 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
       <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden", margin: "12px 0" }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: `1px solid ${C.border}`, background: C.bg }}>
           {["월","화","수","목","금","토","일"].map((d, i) => (
-            <div key={d} style={{ textAlign: "center", padding: "8px 2px", fontSize: 12, fontWeight: 700, color: i===0 ? "#E04040" : i===6 ? C.blue : C.inkMuted }}>{d}</div>
+            <div key={d} style={{ textAlign: "center", padding: "8px 2px", fontSize: 12, fontWeight: 700, color: i===6 ? "#E04040" : i===5 ? C.blue : C.inkMuted }}>{d}</div>
           ))}
         </div>
 
@@ -204,7 +204,7 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
               <div key={day} onClick={() => setSelectedDate(isSelected ? null : info.dateStr)}
                 style={{ minHeight: 64, padding: "6px 4px", borderRight: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, cursor: info.scheduled.length > 0 ? "pointer" : "default", background: isSelected ? C.accentLight : isToday ? "#fffaf8" : C.surface, transition: "background 0.12s" }}
               >
-                <div style={{ fontSize: 13, fontWeight: isToday ? 700 : 500, marginBottom: 4, display: "flex", alignItems: "center", gap: 3, color: isToday ? C.accent : colIdx===0 ? "#E04040" : colIdx===6 ? C.blue : C.ink }}>
+                <div style={{ fontSize: 13, fontWeight: isToday ? 700 : 500, marginBottom: 4, display: "flex", alignItems: "center", gap: 3, color: isToday ? C.accent : colIdx===6 ? "#E04040" : colIdx===5 ? C.blue : C.ink }}>
                   {day}{isToday && <span style={{ width: 5, height: 5, borderRadius: "50%", background: C.accent, display: "inline-block" }} />}
                 </div>
                 {info.scheduled.length > 0 && (
