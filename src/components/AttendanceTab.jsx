@@ -53,8 +53,7 @@ function WeekView({ students, weekDates, weekOffset, setWeekOffset, toggleAttend
         resetLabel="이번 주로"
       />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, margin: "12px 0" }}>
-        <SummaryCard label="이번 주 출석" value={totalChecks} color={C.green} bg={C.greenLight} icon="✅" />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, margin: "12px 0" }}>
         <SummaryCard label="횟수제 학생" value={`${sessionStudents.length}명`} color={C.blue} bg={C.blueLight} icon="🔢" />
         <SummaryCard label="잔여 0 학생" value={`${exhausted.length}명`}
           color={exhausted.length > 0 ? C.accent : C.inkMuted}
