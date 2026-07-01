@@ -1,67 +1,93 @@
-// 보조요원 데이터 훅 — CRUD + localStorage 저장
-import { useState, useEffect } from "react";
-import { fmtFullDate } from "../constants.js";
-
-const STORAGE_KEY = "artschool_staff";
-
-const INITIAL_STAFF = [
-  {
-    id: 1,
-    name: "홍길동",
-    role: "보조강사",
-    phone: "010-0000-0000",
-    memo: "",
-    attendance: {},
-  },
-];
-
-function loadStaff() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return INITIAL_STAFF;
-}
-
-function saveStaff(staff) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(staff)); }
-  catch {}
-}
+// 보조요원 데이터 훅 — Supabase 연동 버전 (CRUD + 출퇴근 관리)
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "../lib/supabase.js";
 
 export function useStaff() {
-  const [staff, setStaff] = useState(loadStaff);
+  const [staff, setStaff] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => { saveStaff(staff); }, [staff]);
+  const loadStaff = useCallback(async () => {
+    setLoading(true);
 
-  function setAttendance(staffId, dateStr, record) {
-    setStaff((prev) =>
-      prev.map((s) => {
-        if (s.id !== staffId) return s;
-        const att = { ...s.attendance };
-        if (record === null) {
-          delete att[dateStr];
-        } else {
-          att[dateStr] = { ...att[dateStr], ...record };
-        }
-        return { ...s, attendance: att };
-      })
-    );
+    const { data: staffRows, error } = await supabase
+      .from("staff")
+      .select("*")
+      .order("id");
+
+    if (error) {
+      console.error("직원 목록 로드 실패:", error);
+      setLoading(false);
+      return;
+    }
+
+    const { data: attendanceRows } = await supabase.from("staff_attendance").select("*");
+
+    const merged = (staffRows || []).map((row) => {
+      const attendance = {};
+      (attendanceRows || [])
+        .filter((a) => a.staff_id === row.id)
+        .forEach((a) => {
+          attendance[a.date] = {
+            clock_in: a.clock_in,
+            clock_out: a.clock_out,
+            memo: a.memo,
+          };
+        });
+
+      return { ...row, attendance };
+    });
+
+    setStaff(merged);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { loadStaff(); }, [loadStaff]);
+
+  // 날짜별 출퇴근 기록 설정 — record가 null이면 그 날짜 기록 삭제, 아니면 병합
+  async function setAttendance(staffId, dateStr, record) {
+    if (record === null) {
+      await supabase.from("staff_attendance").delete().eq("staff_id", staffId).eq("date", dateStr);
+    } else {
+      const staffMember = staff.find((s) => s.id === staffId);
+      const existing = staffMember?.attendance[dateStr] || {};
+      const merged = { ...existing, ...record };
+
+      await supabase.from("staff_attendance").upsert(
+        { staff_id: staffId, date: dateStr, ...merged },
+        { onConflict: "staff_id,date" }
+      );
+    }
+
+    await loadStaff();
   }
 
-  function addStaff(data) {
-    setStaff((prev) => [
-      ...prev,
-      { ...data, id: Date.now(), attendance: {} },
-    ]);
+  // 직원 추가
+  async function addStaff(data) {
+    await supabase.from("staff").insert({
+      name: data.name,
+      role: data.role,
+      phone: data.phone,
+      memo: data.memo,
+    });
+    await loadStaff();
   }
 
-  function updateStaff(updated) {
-    setStaff((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+  // 직원 수정
+  async function updateStaff(updated) {
+    await supabase.from("staff").update({
+      name: updated.name,
+      role: updated.role,
+      phone: updated.phone,
+      memo: updated.memo,
+    }).eq("id", updated.id);
+    await loadStaff();
   }
 
-  function deleteStaff(staffId) {
-    setStaff((prev) => prev.filter((s) => s.id !== staffId));
+  // 직원 삭제
+  async function deleteStaff(staffId) {
+    await supabase.from("staff").delete().eq("id", staffId);
+    await loadStaff();
   }
 
-  return { staff, setAttendance, addStaff, updateStaff, deleteStaff };
+  return { staff, loading, setAttendance, addStaff, updateStaff, deleteStaff };
 }
