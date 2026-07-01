@@ -1,4 +1,4 @@
-// 학생 데이터 훅 — Supabase 연동 버전 (CRUD + 출석/납부 관리, 보강 지원)
+// 학생 데이터 훅 — Supabase 연동 버전 (CRUD + 출석/납부 관리, 보강/반 구분 지원)
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase.js";
 import { fmtFullDate } from "../constants.js";
@@ -18,6 +18,7 @@ function fromDbStudent(row) {
     usedSessions: row.used_sessions,
     days: row.days || [],
     memo: row.memo,
+    classType: row.class_type,
   };
 }
 
@@ -35,6 +36,7 @@ function toDbStudent(data) {
     used_sessions: data.usedSessions,
     days: data.days,
     memo: data.memo,
+    class_type: data.classType,
   };
 }
 
