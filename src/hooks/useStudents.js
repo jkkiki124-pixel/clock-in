@@ -1,88 +1,142 @@
-// 학생 데이터 훅 — CRUD 액션 + localStorage 영구저장
-import { useState, useEffect } from "react";
-import { INITIAL_STUDENTS, fmtFullDate } from "../constants.js";
+// 학생 데이터 훅 — Supabase 연동 버전 (CRUD + 출석/납부 관리)
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "../lib/supabase.js";
+import { fmtFullDate } from "../constants.js";
 
-const STORAGE_KEY = "artschool_students";
-
-function loadStudents() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return INITIAL_STUDENTS;
+// DB(snake_case) 행을 앱에서 쓰는 형태(camelCase)로 변환
+function fromDbStudent(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    grade: row.grade,
+    phone: row.phone,
+    parentPhone: row.parent_phone,
+    registeredAt: row.registered_at,
+    type: row.type,
+    fee: row.fee,
+    totalSessions: row.total_sessions,
+    usedSessions: row.used_sessions,
+    days: row.days || [],
+    memo: row.memo,
+  };
 }
 
-function saveStudents(students) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(students)); }
-  catch {}
+// 앱에서 쓰는 형태(camelCase)를 DB(snake_case)로 변환
+function toDbStudent(data) {
+  return {
+    name: data.name,
+    grade: data.grade,
+    phone: data.phone,
+    parent_phone: data.parentPhone,
+    registered_at: data.registeredAt,
+    type: data.type,
+    fee: data.fee,
+    total_sessions: data.totalSessions,
+    used_sessions: data.usedSessions,
+    days: data.days,
+    memo: data.memo,
+  };
 }
 
 export function useStudents() {
-  const [students, setStudents] = useState(loadStudents);
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // students가 바뀔 때마다 localStorage에 저장
-  useEffect(() => { saveStudents(students); }, [students]);
+  const loadStudents = useCallback(async () => {
+    setLoading(true);
+
+    const { data: studentRows, error } = await supabase
+      .from("students")
+      .select("*")
+      .order("id");
+
+    if (error) {
+      console.error("학생 목록 로드 실패:", error);
+      setLoading(false);
+      return;
+    }
+
+    const { data: attendanceRows } = await supabase.from("attendance").select("*");
+    const { data: paymentRows } = await supabase.from("payments").select("*");
+
+    const merged = (studentRows || []).map((row) => {
+      const student = fromDbStudent(row);
+
+      const attendance = {};
+      (attendanceRows || [])
+        .filter((a) => a.student_id === student.id)
+        .forEach((a) => { attendance[a.date] = true; });
+
+      const payments = (paymentRows || [])
+        .filter((p) => p.student_id === student.id)
+        .map((p) => ({ month: p.month, paid: p.paid, paidAt: p.paid_at }));
+
+      return { ...student, attendance, payments };
+    });
+
+    setStudents(merged);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { loadStudents(); }, [loadStudents]);
 
   // 출석 토글 — 횟수제는 usedSessions 자동 증감
-  function toggleAttendance(studentId, dateStr) {
-    setStudents((prev) =>
-      prev.map((s) => {
-        if (s.id !== studentId) return s;
-        const att = { ...s.attendance };
-        if (att[dateStr]) {
-          delete att[dateStr];
-          return s.type === "횟수제"
-            ? { ...s, attendance: att, usedSessions: Math.max(0, (s.usedSessions || 0) - 1) }
-            : { ...s, attendance: att };
-        }
-        att[dateStr] = true;
-        return s.type === "횟수제"
-          ? { ...s, attendance: att, usedSessions: (s.usedSessions || 0) + 1 }
-          : { ...s, attendance: att };
-      })
-    );
+  async function toggleAttendance(studentId, dateStr) {
+    const student = students.find((s) => s.id === studentId);
+    if (!student) return;
+
+    const isAttending = !!student.attendance[dateStr];
+
+    if (isAttending) {
+      await supabase.from("attendance").delete().eq("student_id", studentId).eq("date", dateStr);
+    } else {
+      await supabase.from("attendance").insert({ student_id: studentId, date: dateStr });
+    }
+
+    if (student.type === "횟수제") {
+      const nextUsed = Math.max(0, (student.usedSessions || 0) + (isAttending ? -1 : 1));
+      await supabase.from("students").update({ used_sessions: nextUsed }).eq("id", studentId);
+    }
+
+    await loadStudents();
   }
 
   // 수강료 납부 토글
-  function togglePayment(studentId, month) {
-    setStudents((prev) =>
-      prev.map((s) => {
-        if (s.id !== studentId) return s;
-        const today = fmtFullDate(new Date());
-        // 해당 월 납부 기록이 없으면 새로 추가
-        const hasRecord = s.payments.some((p) => p.month === month);
-        if (!hasRecord) {
-          return { ...s, payments: [...s.payments, { month, paid: true, paidAt: today }] };
-        }
-        return {
-          ...s,
-          payments: s.payments.map((p) =>
-            p.month !== month ? p
-              : p.paid ? { ...p, paid: false, paidAt: null }
-                       : { ...p, paid: true,  paidAt: today }
-          ),
-        };
-      })
-    );
+  async function togglePayment(studentId, month) {
+    const student = students.find((s) => s.id === studentId);
+    if (!student) return;
+
+    const existing = student.payments.find((p) => p.month === month);
+    const today = fmtFullDate(new Date());
+
+    if (!existing) {
+      await supabase.from("payments").insert({ student_id: studentId, month, paid: true, paid_at: today });
+    } else if (existing.paid) {
+      await supabase.from("payments").update({ paid: false, paid_at: null }).eq("student_id", studentId).eq("month", month);
+    } else {
+      await supabase.from("payments").update({ paid: true, paid_at: today }).eq("student_id", studentId).eq("month", month);
+    }
+
+    await loadStudents();
   }
 
   // 학생 추가
-  function addStudent(data) {
-    setStudents((prev) => [
-      ...prev,
-      { ...data, id: Date.now(), attendance: {}, payments: [] },
-    ]);
+  async function addStudent(data) {
+    await supabase.from("students").insert(toDbStudent(data));
+    await loadStudents();
   }
 
   // 학생 수정
-  function updateStudent(updated) {
-    setStudents((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+  async function updateStudent(updated) {
+    await supabase.from("students").update(toDbStudent(updated)).eq("id", updated.id);
+    await loadStudents();
   }
 
   // 학생 삭제
-  function deleteStudent(studentId) {
-    setStudents((prev) => prev.filter((s) => s.id !== studentId));
+  async function deleteStudent(studentId) {
+    await supabase.from("students").delete().eq("id", studentId);
+    await loadStudents();
   }
 
-  return { students, toggleAttendance, togglePayment, addStudent, updateStudent, deleteStudent };
+  return { students, loading, toggleAttendance, togglePayment, addStudent, updateStudent, deleteStudent };
 }
