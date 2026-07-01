@@ -3,11 +3,13 @@ import { useState, useMemo } from "react";
 import { globalStyle, TODAY, getWeekDates } from "./constants.js";
 import { useAuth }     from "./hooks/useAuth.js";
 import { useStudents } from "./hooks/useStudents.js";
+import { useStaff }    from "./hooks/useStaff.js";
 import { Header }      from "./components/Header.jsx";
 import { LockScreen, ChangePwModal } from "./components/AuthScreens.jsx";
 import { AttendanceTab } from "./components/AttendanceTab.jsx";
 import { PaymentTab }    from "./components/PaymentTab.jsx";
 import { StudentsTab }   from "./components/StudentsTab.jsx";
+import { StaffTab }      from "./components/StaffTab.jsx";
 import { StudentModal, AddStudentModal } from "./components/StudentModals.jsx";
 
 export default function App() {
@@ -16,6 +18,9 @@ export default function App() {
 
   // ── 학생 데이터 (localStorage 영구저장)
   const { students, toggleAttendance, togglePayment, addStudent, updateStudent, deleteStudent } = useStudents();
+
+  // ── 보조요원 데이터
+  const { staff, setAttendance, addStaff, updateStaff, deleteStaff } = useStaff();
 
   // ── UI 상태
   const [tab,             setTab]             = useState("attendance");
@@ -82,6 +87,15 @@ export default function App() {
             <StudentsTab
               students={students}
               onSelectStudent={handleSelectStudent}
+            />
+          )}
+          {tab === "staff" && (
+            <StaffTab
+              staff={staff}
+              setAttendance={setAttendance}
+              addStaff={addStaff}
+              updateStaff={updateStaff}
+              deleteStaff={deleteStaff}
             />
           )}
         </main>
