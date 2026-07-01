@@ -60,12 +60,12 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
                     >
                       {paid ? (
                         <div>
-                          <div style={{ fontSize: 12 }}>✅</div>
-                          <div style={{ fontSize: 8, color: C.green, fontWeight: 600, lineHeight: 1.3 }}>{dateShort}</div>
-                          {payment.method && <div style={{ fontSize: 8, color: C.inkMuted, lineHeight: 1.3 }}>{payment.method}</div>}
+                          <div style={{ fontSize: 15 }}>✅</div>
+                          <div style={{ fontSize: 10, color: C.green, fontWeight: 700, lineHeight: 1.4 }}>{dateShort}</div>
+                          {payment.method && <div style={{ fontSize: 10, color: C.inkMuted, lineHeight: 1.4 }}>{payment.method}</div>}
                         </div>
                       ) : (
-                        <span style={{ color: C.border, fontSize: 13 }}>○</span>
+                        <span style={{ color: C.border, fontSize: 15 }}>○</span>
                       )}
                     </td>
                   );
