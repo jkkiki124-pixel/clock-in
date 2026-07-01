@@ -43,9 +43,8 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
                   onClick={() => onSelectStudent(student)}
                   style={{ padding: "10px 4px", cursor: "pointer", borderRight: `1px solid ${C.border}`, overflow: "hidden", textAlign: "center" }}
                 >
-                  <div style={{ fontWeight: 800, fontSize: 16, color: C.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{student.name}</div>
-                  <div style={{ fontSize: 10, color: C.inkMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{student.grade}</div>
-                </td>
+                  <div style={{ fontWeight: 800, fontSize: 16, color: C.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "center" }}>{student.name}</div>
+                  <div style={{ fontSize: 10, color: C.inkMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "center" }}>{student.grade}</div>
                 {MONTHS.map((m) => {
                   const key = monthKey(m);
                   const payment = student.payments.find((p) => p.month === key);
