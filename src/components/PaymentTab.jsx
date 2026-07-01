@@ -26,13 +26,13 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
         💡 칸을 클릭하면 납부일과 납부 방법을 입력·수정할 수 있습니다
       </div>
 
-      <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflowX: "auto" }}>
-        <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 900 }}>
+      <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+        <table style={{ borderCollapse: "collapse", width: "100%", tableLayout: "fixed" }}>
           <thead>
             <tr style={{ background: C.bg, borderBottom: `2px solid ${C.border}` }}>
-              <th style={{ position: "sticky", left: 0, background: C.bg, padding: "10px 12px", fontSize: 12, color: C.inkMuted, textAlign: "left", minWidth: 90, borderRight: `1px solid ${C.border}` }}>학생</th>
+              <th style={{ width: 56, padding: "8px 4px", fontSize: 11, color: C.inkMuted, textAlign: "left", borderRight: `1px solid ${C.border}` }}>학생</th>
               {MONTHS.map((m) => (
-                <th key={m} style={{ padding: "10px 4px", fontSize: 12, color: C.inkMuted, textAlign: "center", minWidth: 68 }}>{m}월</th>
+                <th key={m} style={{ padding: "8px 1px", fontSize: 10, color: C.inkMuted, textAlign: "center" }}>{m}월</th>
               ))}
             </tr>
           </thead>
@@ -41,10 +41,10 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
               <tr key={student.id} style={{ borderBottom: idx === students.length - 1 ? "none" : `1px solid ${C.border}` }}>
                 <td
                   onClick={() => onSelectStudent(student)}
-                  style={{ position: "sticky", left: 0, background: C.surface, padding: "10px 12px", cursor: "pointer", borderRight: `1px solid ${C.border}` }}
+                  style={{ padding: "6px 4px", cursor: "pointer", borderRight: `1px solid ${C.border}`, overflow: "hidden" }}
                 >
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{student.name}</div>
-                  <div style={{ fontSize: 11, color: C.inkMuted }}>{student.grade}</div>
+                  <div style={{ fontWeight: 600, fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{student.name}</div>
+                  <div style={{ fontSize: 9, color: C.inkMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{student.grade}</div>
                 </td>
                 {MONTHS.map((m) => {
                   const key = monthKey(m);
@@ -56,16 +56,16 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
                     <td
                       key={m}
                       onClick={() => setModalInfo({ studentId: student.id, month: key })}
-                      style={{ textAlign: "center", padding: "6px 4px", cursor: "pointer", background: paid ? C.greenLight : "transparent", minHeight: 52 }}
+                      style={{ textAlign: "center", padding: "4px 1px", cursor: "pointer", background: paid ? C.greenLight : "transparent" }}
                     >
                       {paid ? (
                         <div>
-                          <div style={{ fontSize: 15 }}>✅</div>
-                          <div style={{ fontSize: 10, color: C.green, fontWeight: 600, marginTop: 1 }}>{dateShort}</div>
-                          {payment.method && <div style={{ fontSize: 10, color: C.inkMuted }}>{payment.method}</div>}
+                          <div style={{ fontSize: 12 }}>✅</div>
+                          <div style={{ fontSize: 8, color: C.green, fontWeight: 600, lineHeight: 1.3 }}>{dateShort}</div>
+                          {payment.method && <div style={{ fontSize: 8, color: C.inkMuted, lineHeight: 1.3 }}>{payment.method}</div>}
                         </div>
                       ) : (
-                        <span style={{ color: C.border, fontSize: 16 }}>○</span>
+                        <span style={{ color: C.border, fontSize: 13 }}>○</span>
                       )}
                     </td>
                   );
