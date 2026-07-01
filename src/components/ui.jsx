@@ -201,11 +201,11 @@ export function StudentForm({ form, setForm, onSubmit, submitLabel }) {
 export function BottomSheet({ onClose, children }) {
   return (
     <div
-      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 200, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
+      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px 12px" }}
       onClick={onClose}
     >
       <div
-        style={{ background: C.surface, borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 600, maxHeight: "90vh", overflowY: "auto", padding: "24px 20px 40px" }}
+        style={{ background: C.surface, borderRadius: 20, width: "100%", maxWidth: 600, maxHeight: "85vh", overflowY: "auto", padding: "24px 20px 32px" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div style={{ width: 40, height: 4, background: C.border, borderRadius: 2, margin: "0 auto 20px" }} />
