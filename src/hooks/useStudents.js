@@ -19,6 +19,7 @@ function fromDbStudent(row) {
     days: row.days || [],
     memo: row.memo,
     classType: row.class_type,
+    status: row.status || "active",
   };
 }
 
@@ -37,6 +38,7 @@ function toDbStudent(data) {
     days: data.days,
     memo: data.memo,
     class_type: data.classType,
+    status: data.status || "active",
   };
 }
 
@@ -153,11 +155,17 @@ export function useStudents() {
     await loadStudents();
   }
 
-  // 학생 삭제
-  async function deleteStudent(studentId) {
-    await supabase.from("students").delete().eq("id", studentId);
-    await loadStudents();
-  }
+ // 학생 삭제
+async function deleteStudent(studentId) {
+  await supabase.from("students").delete().eq("id", studentId);
+  await loadStudents();
+}
 
-  return { students, loading, toggleAttendance, togglePayment, setPayment, addStudent, updateStudent, deleteStudent };
+ // 퇴원/재원 처리
+async function setStudentStatus(studentId, status) {
+  await supabase.from("students").update({ status }).eq("id", studentId);
+  await loadStudents();
+}
+
+return { students, loading, toggleAttendance, togglePayment, setPayment, addStudent, updateStudent, deleteStudent, setStudentStatus };
 }
