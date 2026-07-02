@@ -177,11 +177,12 @@ export function StudentForm({ form, setForm, onSubmit, submitLabel }) {
       </FormField>
       <FormField label="수강료">
           <select
-            value={FEE_OPTIONS.includes(form.fee) ? form.fee : "custom"}
+            value={customFee ? "custom" : form.fee}
             onChange={(e) => {
               if (e.target.value === "custom") {
-                setForm({ ...form, fee: form.fee || 0 });
+                setCustomFee(true);
               } else {
+                setCustomFee(false);
                 setForm({ ...form, fee: Number(e.target.value) });
               }
             }}
@@ -192,7 +193,7 @@ export function StudentForm({ form, setForm, onSubmit, submitLabel }) {
             ))}
             <option value="custom">직접입력</option>
           </select>
-          {!FEE_OPTIONS.includes(form.fee) && (
+          {customFee && (
             <input
               type="number"
               value={form.fee}
