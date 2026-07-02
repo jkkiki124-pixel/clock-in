@@ -39,9 +39,6 @@ function WeekView({ students, weekDates, weekOffset, setWeekOffset, toggleAttend
   const weekLabel = `${weekDates[0].getMonth() + 1}/${weekDates[0].getDate()} ~ ${weekDates[6].getMonth() + 1}/${weekDates[6].getDate()}`;
   const DAY_NAMES = ["월", "화", "수", "목", "금", "토", "일"];
 
- const sessionStudents = students.filter((s) => s.type === "횟수제");
-  const exhausted = sessionStudents.filter((s) => s.usedSessions >= s.totalSessions);
-
   return (
     <div>
       <NavBar
@@ -52,13 +49,6 @@ function WeekView({ students, weekDates, weekOffset, setWeekOffset, toggleAttend
         onReset={weekOffset !== 0 ? () => setWeekOffset(0) : null}
         resetLabel="이번 주로"
       />
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, margin: "12px 0" }}>
-        <SummaryCard label="횟수제 학생" value={`${sessionStudents.length}명`} color={C.blue} bg={C.blueLight} icon="🔢" />
-        <SummaryCard label="잔여 0 학생" value={`${exhausted.length}명`}
-          color={exhausted.length > 0 ? C.accent : C.inkMuted}
-          bg={exhausted.length > 0 ? C.accentLight : C.bg} icon="⚠️" />
-      </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "0 0 12px 4px", fontSize: 13, color: C.inkMuted }}>
         <span>💡 수업 요일이 아닌 칸을 클릭하면 <b style={{ color: C.yellow }}>보강</b>으로 표시됩니다</span>
