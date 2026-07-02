@@ -124,21 +124,22 @@ export function useStudents() {
 
   // 수강료 납부 정보를 날짜/방법까지 직접 지정해서 저장 (1년 전체 보기 화면에서 사용)
   async function setPayment(studentId, month, { paid, paidAt, method }) {
-    const student = students.find((s) => s.id === studentId);
-    if (!student) return;
-
-    const existing = student.payments.find((p) => p.month === month);
-
-    if (!paid) {
-      await supabase.from("payments").delete().eq("student_id", studentId).eq("month", month);
-    } else if (existing) {
-      await supabase.from("payments").update({ paid: true, paid_at: paidAt, method }).eq("student_id", studentId).eq("month", month);
-    } else {
-      await supabase.from("payments").insert({ student_id: studentId, month, paid: true, paid_at: paidAt, method });
-    }
-
-    await loadStudents();
+  const student = students.find((s) => s.id === studentId);
+  if (!student) return;
+  const existing = student.payments.find((p) => p.month === month);
+  if (!paid) {
+    await supabase.from("payments").delete().eq("student_id", studentId).eq("month", month);
+  } else if (existing) {
+    await supabase.from("payments").update({ paid: true, paid_at: paidAt, method }).eq("student_id", studentId).eq("month", month);
+  } else {
+    await supabase.from("payments").insert({ student_id: studentId, month, paid: true, paid_at: paidAt, method });
   }
+  // 횟수제 학생이 결제 확인되면 회차 카운트 자동 리셋
+  if (paid && student.type === "횟수제") {
+    await supabase.from("students").update({ used_sessions: 0 }).eq("id", studentId);
+  }
+  await loadStudents();
+}
 
   // 학생 추가
   async function addStudent(data) {
