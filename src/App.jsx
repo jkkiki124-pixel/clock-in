@@ -4,6 +4,7 @@ import { globalStyle, TODAY, getWeekDates } from "./constants.js";
 import { useAuth }     from "./hooks/useAuth.js";
 import { useStudents } from "./hooks/useStudents.js";
 import { useStaff }    from "./hooks/useStaff.js";
+import { useCalendarNotes } from "./hooks/useCalendarNotes.js";
 import { Header }      from "./components/Header.jsx";
 import { LockScreen, ChangePwModal } from "./components/AuthScreens.jsx";
 import { AttendanceTab } from "./components/AttendanceTab.jsx";
@@ -21,6 +22,9 @@ export default function App() {
 
   // ── 보조요원 데이터
   const { staff, setAttendance, addStaff, updateStaff, deleteStaff } = useStaff();
+
+  // ── 달력 메모(공휴일/방학 등)
+  const { notes, setNote } = useCalendarNotes();
 
   // ── UI 상태
   const [tab,             setTab]             = useState("attendance");
@@ -59,7 +63,7 @@ export default function App() {
       <style>{globalStyle}</style>
       <div style={{ minHeight: "100vh" }}>
         <Header
-          tab={tab} setTab={setTab}
+          ={} set={set}
           onAddStudent={() => setAddOpen(true)}
           onLogout={logout}
           onChangePw={() => setChangePwOpen(true)}
@@ -74,6 +78,8 @@ export default function App() {
               setWeekOffset={setWeekOffset}
               toggleAttendance={toggleAttendance}
               onSelectStudent={handleSelectStudent}
+              notes={notes}
+              setNote={setNote}
             />
           )}
 
