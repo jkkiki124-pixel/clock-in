@@ -1,9 +1,9 @@
 // 출석부 탭 — 주간 그리드 뷰 + 달력 뷰 (보강 체크 지원)
-import { useState, useMemo } from "react";
-import { C, TODAY, fmtDate, fmtFullDate, getWeekDates, KR_DAYS } from "../constants.js";
+import { useState, useMemo, useEffect } from "react";
+import { C, TODAY, fmtDate, fmtFullDate, getWeekDates, KR_DAYS, KR_HOLIDAYS_2026 } from "../constants.js";
 import { SummaryCard, EmptyState } from "./ui.jsx";
 
-export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, toggleAttendance, onSelectStudent }) {
+export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, toggleAttendance, onSelectStudent, notes, setNote }) {
   const [viewMode, setViewMode] = useState("week");
   const [calMonth, setCalMonth] = useState({ year: TODAY.getFullYear(), month: TODAY.getMonth() });
 
@@ -28,7 +28,7 @@ export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, 
 
       {viewMode === "week"
         ? <WeekView students={students} weekDates={weekDates} weekOffset={weekOffset} setWeekOffset={setWeekOffset} toggleAttendance={toggleAttendance} onSelectStudent={onSelectStudent} />
-        : <CalendarView students={students} calMonth={calMonth} setCalMonth={setCalMonth} toggleAttendance={toggleAttendance} onSelectStudent={onSelectStudent} />
+        : <CalendarView students={students} calMonth={calMonth} setCalMonth={setCalMonth} toggleAttendance={toggleAttendance} onSelectStudent={onSelectStudent} notes={notes} setNote={setNote} />
       }
     </div>
   );
@@ -139,10 +139,15 @@ function WeekRow({ student, weekDates, todayStr, onToggle, onSelect, isLast }) {
   );
 }
 
-function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSelectStudent }) {
+function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSelectStudent, notes, setNote }) {
   const { year, month } = calMonth;
   const [selectedDate, setSelectedDate] = useState(null);
+  const [memoDraft, setMemoDraft] = useState("");
   const todayStr = fmtFullDate(TODAY);
+
+  useEffect(() => {
+    setMemoDraft(selectedDate ? (notes[selectedDate] || "") : "");
+  }, [selectedDate, notes]);
 
   const firstDay = (new Date(year, month, 1).getDay() + 6) % 7;
   const lastDate = new Date(year, month + 1, 0).getDate();
@@ -189,19 +194,31 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
           {cells.map((day, idx) => {
-            if (!day) return <div key={`e${idx}`} style={{ minHeight: 64, borderRight: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }} />;
+            if (!day) return <div key={`e${idx}`} style={{ minHeight: 92, borderRight: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }} />;
             const info = getDateInfo(day);
             const isToday = info.dateStr === todayStr;
             const isSelected = info.dateStr === selectedDate;
             const colIdx = idx % 7;
+            const holiday = KR_HOLIDAYS_2026[info.dateStr];
+            const note = notes[info.dateStr];
 
             return (
               <div key={day} onClick={() => setSelectedDate(isSelected ? null : info.dateStr)}
-                style={{ minHeight: 64, padding: "6px 4px", borderRight: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, cursor: info.scheduled.length > 0 ? "pointer" : "default", background: isSelected ? C.accentLight : isToday ? "#fffaf8" : C.surface, transition: "background 0.12s" }}
+                style={{ minHeight: 92, padding: "6px 4px", borderRight: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, cursor: "pointer", background: isSelected ? C.accentLight : isToday ? "#fffaf8" : C.surface, transition: "background 0.12s" }}
               >
-                <div style={{ fontSize: 14, fontWeight: isToday ? 700 : 500, marginBottom: 4, display: "flex", alignItems: "center", gap: 3, color: isToday ? C.accent : colIdx===6 ? "#E04040" : colIdx===5 ? C.blue : C.ink }}>
+                <div style={{ fontSize: 14, fontWeight: isToday ? 700 : 500, marginBottom: 4, display: "flex", alignItems: "center", gap: 3, color: isToday ? C.accent : holiday ? "#E04040" : colIdx===6 ? "#E04040" : colIdx===5 ? C.blue : C.ink }}>
                   {day}{isToday && <span style={{ width: 5, height: 5, borderRadius: "50%", background: C.accent, display: "inline-block" }} />}
                 </div>
+                {holiday && (
+                  <div style={{ fontSize: 10, color: "#E04040", fontWeight: 600, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {holiday}
+                  </div>
+                )}
+                {note && (
+                  <div style={{ fontSize: 10, color: C.blue, fontWeight: 600, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    📝 {note}
+                  </div>
+                )}
                 {info.scheduled.length > 0 && (
                   <>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
@@ -233,8 +250,30 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
             <div>
               <div style={{ fontWeight: 700, fontSize: 16 }}>{selectedDate.replace(/-/g, ".")} ({selectedInfo.krDay})</div>
               <div style={{ fontSize: 14, opacity: 0.85, marginTop: 2 }}>출석 {selectedInfo.attended.length}명 / 예정 {selectedInfo.scheduled.length}명</div>
+              {KR_HOLIDAYS_2026[selectedDate] && (
+                <div style={{ fontSize: 13, fontWeight: 700, marginTop: 4, background: "rgba(255,255,255,0.2)", display: "inline-block", padding: "2px 8px", borderRadius: 6 }}>
+                  🎌 {KR_HOLIDAYS_2026[selectedDate]}
+                </div>
+              )}
             </div>
             <button onClick={() => setSelectedDate(null)} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 6, padding: "4px 10px", color: "#fff", fontSize: 16 }}>✕</button>
+          </div>
+
+          <div style={{ padding: "12px 16px", borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: C.inkMuted, marginBottom: 6 }}>메모 (방학, 휴원 등)</div>
+            <textarea
+              value={memoDraft}
+              onChange={(e) => setMemoDraft(e.target.value)}
+              placeholder="예: 여름방학, 임시휴원 등"
+              rows={2}
+              style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 13, resize: "vertical", boxSizing: "border-box" }}
+            />
+            <button
+              onClick={() => setNote(selectedDate, memoDraft)}
+              style={{ marginTop: 6, padding: "7px 14px", borderRadius: 8, border: "none", background: C.accent, color: "#fff", fontWeight: 600, fontSize: 13 }}
+            >
+              메모 저장
+            </button>
           </div>
 
           {selectedInfo.scheduled.length === 0
