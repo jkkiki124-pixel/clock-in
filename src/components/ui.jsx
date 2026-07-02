@@ -1,4 +1,5 @@
 // 공통 UI 컴포넌트 모음
+import { useState } from "react";
 import { C, inputStyle } from "../constants.js";
 
 export function Badge({ text, color, bg }) {
@@ -142,6 +143,7 @@ const GRADE_OPTIONS = [
 const FEE_OPTIONS = [80000, 100000, 120000, 130000, 140000, 150000, 160000, 170000, 200000];
 
 export function StudentForm({ form, setForm, onSubmit, submitLabel }) {
+  const [customFee, setCustomFee] = useState(!FEE_OPTIONS.includes(form.fee));
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <FormField label="반 구분 *">
