@@ -139,7 +139,7 @@ const GRADE_OPTIONS = [
   "성인",
 ];
 
-const FEE_OPTIONS = [80000, 100000, 120000, 130000, 140000, 170000, 200000];
+const FEE_OPTIONS = [80000, 100000, 120000, 130000, 140000, 150000, 160000, 170000, 200000];
 
 export function StudentForm({ form, setForm, onSubmit, submitLabel }) {
   return (
