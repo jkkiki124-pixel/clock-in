@@ -17,7 +17,7 @@ export default function App() {
   const { authed, isFirstRun, changePwOpen, setChangePwOpen, login, logout, changePw } = useAuth();
 
   // ── 학생 데이터 (Supabase 영구저장)
-  const { students, toggleAttendance, togglePayment, setPayment, addStudent, updateStudent, deleteStudent } = useStudents();
+  const { students, toggleAttendance, togglePayment, setPayment, addStudent, updateStudent, deleteStudent, setStudentStatus } = useStudents();
 
   // ── 보조요원 데이터
   const { staff, setAttendance, addStaff, updateStaff, deleteStaff } = useStaff();
@@ -108,6 +108,7 @@ export default function App() {
             onUpdate={handleUpdateStudent}
             onDelete={(id) => { deleteStudent(id); setSelectedStudent(null); }}
             togglePayment={togglePayment}
+            setStudentStatus={setStudentStatus}
           />
         )}
 
