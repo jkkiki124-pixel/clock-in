@@ -73,7 +73,26 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
                 })}
               </tr>
             ))}
-          </tbody>
+         </tbody>
+          <tfoot>
+            <tr style={{ background: C.bg, borderTop: `2px solid ${C.border}` }}>
+              <td style={{ padding: "10px 4px", fontSize: 12, fontWeight: 700, color: C.ink, textAlign: "center", borderRight: `1px solid ${C.border}` }}>
+                합계
+              </td>
+              {MONTHS.map((m) => {
+                const key = monthKey(m);
+                const total = students.reduce((sum, s) => {
+                  const payment = s.payments.find((p) => p.month === key);
+                  return payment && payment.paid ? sum + s.fee : sum;
+                }, 0);
+                return (
+                  <td key={m} style={{ padding: "8px 1px", textAlign: "center", fontSize: 12, fontWeight: 700, color: C.accent }}>
+                    {total > 0 ? `${total.toLocaleString()}원` : "-"}
+                  </td>
+                );
+              })}
+            </tr>
+          </tfoot>
         </table>
       </div>
 
