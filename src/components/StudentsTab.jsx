@@ -7,9 +7,10 @@ const CLASS_TYPES = ["유치부", "초등부", "중고등부", "성인반"];
 
 export function StudentsTab({ students, onSelectStudent }) {
   const [search, setSearch] = useState("");
+  const [activeType, setActiveType] = useState("전체");
   const currentMonth = `${TODAY.getFullYear()}-${String(TODAY.getMonth() + 1).padStart(2, "0")}`;
   const filtered = students.filter((s) => s.name.includes(search) || s.grade.includes(search));
-
+  const visibleTypes = activeType === "전체" ? CLASS_TYPES : [activeType];
   return (
     <div>
       <div style={{ position: "relative", marginBottom: 12 }}>
@@ -21,13 +22,32 @@ export function StudentsTab({ students, onSelectStudent }) {
         />
         <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: C.inkMuted }}>🔍</span>
       </div>
-
+      <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto", paddingBottom: 2 }}>
+        {["전체", ...CLASS_TYPES].map((ct) => {
+          const active = activeType === ct;
+          return (
+            <button
+              key={ct}
+              onClick={() => setActiveType(ct)}
+              style={{
+                padding: "8px 14px", borderRadius: 20, whiteSpace: "nowrap",
+                border: "1px solid " + (active ? C.accent : C.border),
+                background: active ? C.accent : "transparent",
+                color: active ? "#fff" : C.inkMuted,
+                fontWeight: 600, fontSize: 13, flexShrink: 0,
+              }}
+            >
+              {ct}
+            </button>
+          );
+        })}
+      </div>
       {filtered.length === 0 ? (
         <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}` }}>
           <EmptyState text="검색 결과가 없습니다." />
         </div>
       ) : (
-        CLASS_TYPES.map((ct) => {
+        visibleTypes.map((ct) => {
           const group = filtered.filter((s) => (s.classType || "초등부") === ct);
           if (group.length === 0) return null;
 
