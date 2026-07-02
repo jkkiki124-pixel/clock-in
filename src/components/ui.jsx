@@ -174,12 +174,32 @@ export function StudentForm({ form, setForm, onSubmit, submitLabel }) {
         </select>
       </FormField>
       <FormField label="수강료">
-        <select value={form.fee} onChange={(e) => setForm({ ...form, fee: Number(e.target.value) })} style={inputStyle}>
-          {FEE_OPTIONS.map((f) => (
-            <option key={f} value={f}>{f.toLocaleString()}원</option>
-          ))}
-        </select>
-      </FormField>
+          <select
+            value={FEE_OPTIONS.includes(form.fee) ? form.fee : "custom"}
+            onChange={(e) => {
+              if (e.target.value === "custom") {
+                setForm({ ...form, fee: form.fee || 0 });
+              } else {
+                setForm({ ...form, fee: Number(e.target.value) });
+              }
+            }}
+            style={inputStyle}
+          >
+            {FEE_OPTIONS.map((f) => (
+              <option key={f} value={f}>{f.toLocaleString()}원</option>
+            ))}
+            <option value="custom">직접입력</option>
+          </select>
+          {!FEE_OPTIONS.includes(form.fee) && (
+            <input
+              type="number"
+              value={form.fee}
+              onChange={(e) => setForm({ ...form, fee: Number(e.target.value) })}
+              placeholder="금액을 직접 입력하세요"
+              style={{ ...inputStyle, marginTop: 8 }}
+            />
+          )}
+        </FormField>
       {form.type === "횟수제" && (
         <FormField label="총 횟수">
           <input type="number" value={form.totalSessions || 10} onChange={(e) => setForm({ ...form, totalSessions: Number(e.target.value) })} style={inputStyle} />
