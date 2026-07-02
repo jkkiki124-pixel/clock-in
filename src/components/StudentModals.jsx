@@ -7,11 +7,11 @@ const BLANK_FORM = {
   name: "", grade: "", phone: "", parentPhone: "",
   registeredAt: fmtFullDate(TODAY),
   type: "월정액", fee: 150000, totalSessions: 10, usedSessions: 0,
-  days: [], memo: "", classType: "초등부",
+  days: [], memo: "", classType: "초등부", status: "active",
 };
 
 // ─── 학생 상세 모달 ────────────────────────────────────────
-export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayment }) {
+export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayment, setStudentStatus }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(student);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -61,6 +61,19 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
           </div>
         </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+          <button
+            onClick={() => setStudentStatus(student.id, student.status === "withdrawn" ? "active" : "withdrawn")}
+            style={{
+              background: "none",
+              border: `1px solid ${student.status === "withdrawn" ? C.green : C.border}`,
+              borderRadius: 8,
+              padding: "6px 12px",
+              fontSize: 13,
+              color: student.status === "withdrawn" ? C.green : C.inkMuted,
+            }}
+          >
+            {student.status === "withdrawn" ? "🔄 재원처리" : "🚪 퇴원처리"}
+          </button>
           <button
             onClick={() => {
               setEditing(!editing);
