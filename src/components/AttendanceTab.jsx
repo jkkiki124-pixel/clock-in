@@ -144,7 +144,7 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
   const [selectedDate, setSelectedDate] = useState(null);
   const todayStr = fmtFullDate(TODAY);
 
-  const firstDay = new Date(year, month, 1).getDay();
+  const firstDay = (new Date(year, month, 1).getDay() + 6) % 7;
   const lastDate = new Date(year, month + 1, 0).getDate();
   const cells = [...Array(firstDay).fill(null), ...Array.from({ length: lastDate }, (_, i) => i + 1)];
   const isCurrentMonth = year === TODAY.getFullYear() && month === TODAY.getMonth();
