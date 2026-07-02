@@ -22,25 +22,30 @@ export function StudentsTab({ students, onSelectStudent }) {
         />
         <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: C.inkMuted }}>🔍</span>
       </div>
-      <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto", paddingBottom: 2 }}>
-        {["전체", ...CLASS_TYPES].map((ct) => {
-          const active = activeType === ct;
-          return (
-            <button
-              key={ct}
-              onClick={() => setActiveType(ct)}
-              style={{
-                padding: "8px 14px", borderRadius: 20, whiteSpace: "nowrap",
-                border: "1px solid " + (active ? C.accent : C.border),
-                background: active ? C.accent : "transparent",
-                color: active ? "#fff" : C.inkMuted,
-                fontWeight: 600, fontSize: 13, flexShrink: 0,
-              }}
-            >
-              {ct}
-            </button>
-          );
-        })}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, gap: 8 }}>
+        <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
+          {["전체", ...CLASS_TYPES].map((ct) => {
+            const active = activeType === ct;
+            return (
+              <button
+                key={ct}
+                onClick={() => setActiveType(ct)}
+                style={{
+                  padding: "8px 14px", borderRadius: 20, whiteSpace: "nowrap",
+                  border: "1px solid " + (active ? C.accent : C.border),
+                  background: active ? C.accent : "transparent",
+                  color: active ? "#fff" : C.inkMuted,
+                  fontWeight: 600, fontSize: 13, flexShrink: 0,
+                }}
+              >
+                {ct}
+              </button>
+            );
+          })}
+        </div>
+        <span style={{ fontSize: 13, color: C.inkMuted, fontWeight: 600, flexShrink: 0 }}>
+          총 {filtered.length}명
+        </span>
       </div>
       {filtered.length === 0 ? (
         <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}` }}>
