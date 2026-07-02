@@ -68,7 +68,7 @@ export default function App() {
         <main style={{ maxWidth: 900, margin: "0 auto", padding: "16px 12px 80px" }}>
           {tab === "attendance" && (
             <AttendanceTab
-              students={students}
+              students={students.filter((s) => s.status !== "withdrawn")}
               weekDates={weekDates}
               weekOffset={weekOffset}
               setWeekOffset={setWeekOffset}
@@ -76,9 +76,10 @@ export default function App() {
               onSelectStudent={handleSelectStudent}
             />
           )}
+
           {tab === "payment" && (
             <PaymentTab
-              students={students}
+              students={students.filter((s) => s.status !== "withdrawn")}
               setPayment={setPayment}
               onSelectStudent={handleSelectStudent}
             />
