@@ -8,8 +8,11 @@ const CLASS_TYPES = ["유치부", "초등부", "중고등부", "성인반"];
 export function StudentsTab({ students, onSelectStudent }) {
   const [search, setSearch] = useState("");
   const [activeType, setActiveType] = useState("전체");
+  const [showWithdrawn, setShowWithdrawn] = useState(false);
   const currentMonth = `${TODAY.getFullYear()}-${String(TODAY.getMonth() + 1).padStart(2, "0")}`;
-  const filtered = students.filter((s) => s.name.includes(search) || s.grade.includes(search));
+  const filtered = students
+    .filter((s) => (showWithdrawn ? s.status === "withdrawn" : s.status !== "withdrawn"))
+    .filter((s) => s.name.includes(search) || s.grade.includes(search));
   const visibleTypes = activeType === "전체" ? CLASS_TYPES : [activeType];
   return (
     <div>
@@ -43,9 +46,23 @@ export function StudentsTab({ students, onSelectStudent }) {
             );
           })}
         </div>
-        <span style={{ fontSize: 13, color: C.inkMuted, fontWeight: 600, flexShrink: 0 }}>
-          총 {filtered.length}명
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          <span style={{ fontSize: 13, color: C.inkMuted, fontWeight: 600 }}>
+            총 {filtered.length}명
+          </span>
+          <button
+            onClick={() => setShowWithdrawn((v) => !v)}
+            style={{
+              fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 14,
+              border: `1px solid ${showWithdrawn ? C.accent : C.border}`,
+              background: showWithdrawn ? C.accentLight : "transparent",
+              color: showWithdrawn ? C.accent : C.inkMuted,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {showWithdrawn ? "← 재원생 보기" : "퇴원생 보기"}
+          </button>
+        </div>
       </div>
       {filtered.length === 0 ? (
         <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}` }}>
