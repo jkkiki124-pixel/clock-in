@@ -20,8 +20,9 @@ export function StaffTab({ staff, setAttendance, addStaff, updateStaff, deleteSt
   const weekLabel = `${weekDates[0].getMonth() + 1}/${weekDates[0].getDate()} ~ ${weekDates[6].getMonth() + 1}/${weekDates[6].getDate()}`;
   const DAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
 
+  const currentMonthPrefix = fmtFullDate(TODAY).slice(0, 7); // "YYYY-MM"
   const totalChecks = staff.reduce((sum, s) =>
-    sum + weekDates.filter((d) => s.attendance[fmtFullDate(d)]?.clockIn).length, 0
+    sum + Object.entries(s.attendance).filter(([dateStr, rec]) => dateStr.startsWith(currentMonthPrefix) && rec?.clockIn).length, 0
   );
 
   // 출근 체크 토글 — 시간 입력 없이 클릭 한 번으로 출근/취소 처리
@@ -39,7 +40,7 @@ export function StaffTab({ staff, setAttendance, addStaff, updateStaff, deleteSt
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <div style={{ background: C.greenLight, borderRadius: 10, padding: "10px 16px", border: `1px solid ${C.green}22` }}>
-          <div style={{ fontSize: 11, color: C.inkMuted }}>이번 주 출근</div>
+          <div style={{ fontSize: 11, color: C.inkMuted }}>이번 달 출근</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: C.green }}>{totalChecks}회</div>
         </div>
         <button
