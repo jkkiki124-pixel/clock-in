@@ -128,11 +128,7 @@ function StaffRow({ staff, weekDates, todayStr, isLast, onSelect, onCellClick })
             style={{ borderLeft: `1px solid ${C.border}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: isToday ? "#fffaf9" : rec?.clockIn ? C.greenLight : C.surface, cursor: "pointer", minHeight: 60, padding: "4px 2px", transition: "background 0.1s" }}
           >
             {rec?.clockIn ? (
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.green }}>{rec.clockIn}</div>
-                {rec.clockOut && <div style={{ fontSize: 10, color: C.inkMuted }}>{rec.clockOut}</div>}
-                {rec.memo && <div style={{ fontSize: 9, color: C.accent, marginTop: 1 }}>📝</div>}
-              </div>
+              <span style={{ fontSize: 22 }}>✅</span>
             ) : (
               <span style={{ fontSize: 16, color: C.border }}>○</span>
             )}
