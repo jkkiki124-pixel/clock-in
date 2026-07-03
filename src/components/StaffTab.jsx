@@ -12,7 +12,6 @@ export function StaffTab({ staff, setAttendance, addStaff, updateStaff, deleteSt
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [addOpen, setAddOpen] = useState(false);
-  const [recordOpen, setRecordOpen] = useState(null);
 
   const baseDate = new Date(TODAY);
   baseDate.setDate(TODAY.getDate() + weekOffset * 7);
@@ -24,6 +23,17 @@ export function StaffTab({ staff, setAttendance, addStaff, updateStaff, deleteSt
   const totalChecks = staff.reduce((sum, s) =>
     sum + weekDates.filter((d) => s.attendance[fmtFullDate(d)]?.clockIn).length, 0
   );
+
+  // 출근 체크 토글 — 시간 입력 없이 클릭 한 번으로 출근/취소 처리
+  function toggleStaffCheck(staffId, dateStr, checked) {
+    if (checked) {
+      setAttendance(staffId, dateStr, null);
+    } else {
+      const now = new Date();
+      const clockIn = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+      setAttendance(staffId, dateStr, { clockIn });
+    }
+  }
 
   return (
     <div>
@@ -77,7 +87,7 @@ export function StaffTab({ staff, setAttendance, addStaff, updateStaff, deleteSt
               todayStr={todayStr}
               isLast={idx === staff.length - 1}
               onSelect={() => setSelectedStaff(s)}
-              onCellClick={(dateStr) => setRecordOpen({ staffId: s.id, dateStr })}
+              onCellClick={(dateStr) => toggleStaffCheck(s.id, dateStr, !!s.attendance[dateStr]?.clockIn)}
             />
           ))}
         </div>
@@ -89,16 +99,6 @@ export function StaffTab({ staff, setAttendance, addStaff, updateStaff, deleteSt
           onClose={() => setSelectedStaff(null)}
           onUpdate={(updated) => { updateStaff(updated); setSelectedStaff(updated); }}
           onDelete={(id) => { deleteStaff(id); setSelectedStaff(null); }}
-        />
-      )}
-
-      {recordOpen && (
-        <RecordModal
-          staff={staff.find((s) => s.id === recordOpen.staffId)}
-          dateStr={recordOpen.dateStr}
-          onClose={() => setRecordOpen(null)}
-          onSave={(record) => { setAttendance(recordOpen.staffId, recordOpen.dateStr, record); setRecordOpen(null); }}
-          onDelete={() => { setAttendance(recordOpen.staffId, recordOpen.dateStr, null); setRecordOpen(null); }}
         />
       )}
 
@@ -143,42 +143,6 @@ function StaffRow({ staff, weekDates, todayStr, isLast, onSelect, onCellClick })
   );
 }
 
-function RecordModal({ staff, dateStr, onClose, onSave, onDelete }) {
-  const existing = staff.attendance[dateStr] || {};
-  const [clockIn, setClockIn] = useState(existing.clockIn || "");
-  const [clockOut, setClockOut] = useState(existing.clockOut || "");
-  const [memo, setMemo] = useState(existing.memo || "");
-
-  const [y, m, d] = dateStr.split("-");
-  const dateLabel = `${Number(m)}월 ${Number(d)}일`;
-
-  function handleSave() {
-    if (!clockIn) { alert("출근 시간을 입력해주세요."); return; }
-    onSave({ clockIn, clockOut, memo });
-  }
-
-  return (
-    <BottomSheet onClose={onClose}>
-      <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 4 }}>{staff.name} 선생님</div>
-      <div style={{ fontSize: 14, color: C.inkMuted, marginBottom: 20 }}>{dateLabel} 출퇴근 기록</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <FormField label="출근 시간 *">
-          <input type="time" value={clockIn} onChange={(e) => setClockIn(e.target.value)} style={inputStyle} />
-        </FormField>
-        <FormField label="퇴근 시간">
-          <input type="time" value={clockOut} onChange={(e) => setClockOut(e.target.value)} style={inputStyle} />
-        </FormField>
-        <FormField label="메모">
-          <textarea value={memo} onChange={(e) => setMemo(e.target.value)} rows={2} placeholder="예: 조퇴, 지각 사유 등" style={{ ...inputStyle, resize: "vertical" }} />
-        </FormField>
-        <button onClick={handleSave} style={{ background: C.accent, color: "#fff", border: "none", borderRadius: 10, padding: "13px", fontWeight: 700, fontSize: 15 }}>저장</button>
-        {existing.clockIn && (
-          <button onClick={onDelete} style={{ background: "none", border: `1px solid ${C.accent}`, color: C.accent, borderRadius: 10, padding: "11px", fontWeight: 600, fontSize: 14 }}>기록 삭제</button>
-        )}
-      </div>
-    </BottomSheet>
-  );
-}
 
 function StaffModal({ staff, onClose, onUpdate, onDelete }) {
   const [editing, setEditing] = useState(false);
