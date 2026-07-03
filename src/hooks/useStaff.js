@@ -28,8 +28,8 @@ export function useStaff() {
         .filter((a) => a.staff_id === row.id)
         .forEach((a) => {
           attendance[a.date] = {
-            clock_in: a.clock_in,
-            clock_out: a.clock_out,
+            clockIn: a.clock_in,
+            clockOut: a.clock_out,
             memo: a.memo,
           };
         });
@@ -51,9 +51,8 @@ export function useStaff() {
       const staffMember = staff.find((s) => s.id === staffId);
       const existing = staffMember?.attendance[dateStr] || {};
       const merged = { ...existing, ...record };
-
       await supabase.from("staff_attendance").upsert(
-        { staff_id: staffId, date: dateStr, ...merged },
+        { staff_id: staffId, date: dateStr, clock_in: merged.clockIn, clock_out: merged.clockOut, memo: merged.memo },
         { onConflict: "staff_id,date" }
       );
     }
