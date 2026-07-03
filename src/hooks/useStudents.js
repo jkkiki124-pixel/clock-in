@@ -1,5 +1,5 @@
 // 학생 데이터 훅 — Supabase 연동 버전 (CRUD + 출석/납부 관리, 보강/반 구분/납부방법 지원)
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabase.js";
 import { fmtFullDate } from "../constants.js";
 
@@ -45,6 +45,7 @@ function toDbStudent(data) {
 export function useStudents() {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const pendingToggles = useRef(new Set()); // 처리 중인 출석 토글 중복 클릭 방지
 
   const loadStudents = useCallback(async () => {
     setLoading(true);
@@ -86,23 +87,31 @@ export function useStudents() {
 
   // 출석 토글 — isMakeup이 true면 보강으로 기록, 횟수제는 usedSessions 자동 증감
   async function toggleAttendance(studentId, dateStr, isMakeup = false) {
-    const student = students.find((s) => s.id === studentId);
-    if (!student) return;
+    const key = `${studentId}_${dateStr}`;
+    if (pendingToggles.current.has(key)) return; // 처리 중이면 중복 클릭 무시
+    pendingToggles.current.add(key);
 
-    const isAttending = !!student.attendance[dateStr];
+    try {
+      const student = students.find((s) => s.id === studentId);
+      if (!student) return;
 
-    if (isAttending) {
-      await supabase.from("attendance").delete().eq("student_id", studentId).eq("date", dateStr);
-    } else {
-      await supabase.from("attendance").insert({ student_id: studentId, date: dateStr, is_makeup: isMakeup });
+      const isAttending = !!student.attendance[dateStr];
+
+      if (isAttending) {
+        await supabase.from("attendance").delete().eq("student_id", studentId).eq("date", dateStr);
+      } else {
+        await supabase.from("attendance").insert({ student_id: studentId, date: dateStr, is_makeup: isMakeup });
+      }
+
+      if (student.type === "횟수제") {
+        const nextUsed = Math.max(0, (student.usedSessions || 0) + (isAttending ? -1 : 1));
+        await supabase.from("students").update({ used_sessions: nextUsed }).eq("id", studentId);
+      }
+
+      await loadStudents();
+    } finally {
+      pendingToggles.current.delete(key);
     }
-
-    if (student.type === "횟수제") {
-      const nextUsed = Math.max(0, (student.usedSessions || 0) + (isAttending ? -1 : 1));
-      await supabase.from("students").update({ used_sessions: nextUsed }).eq("id", studentId);
-    }
-
-    await loadStudents();
   }
 
   // 수강료 납부 토글 (기존 방식 — 상세 모달 등에서 사용)
