@@ -1,6 +1,6 @@
 // 출석부 탭 — 주간 그리드 뷰 + 달력 뷰 (보강 체크 지원)
 import { useState, useMemo, useEffect } from "react";
-import { C, TODAY, fmtDate, fmtFullDate, getWeekDates, KR_DAYS, KR_HOLIDAYS_2026 } from "../constants.js";
+import { C, TODAY, fmtDate, fmtFullDate, getWeekDates, KR_HOLIDAYS_2026 } from "../constants.js";
 import { SummaryCard, EmptyState } from "./ui.jsx";
 
 export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, toggleAttendance, onSelectStudent, notes, setNote }) {
@@ -162,14 +162,14 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
 
   function getDateInfo(day) {
     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    const krDay = KR_DAYS[new Date(year, month, day).getDay()];
+    const krDay = ["월","화","수","목","금","토","일"][(new Date(year, month, day).getDay() + 6) % 7];
     return { dateStr, krDay, scheduled: students.filter((s) => s.days.includes(krDay)), attended: students.filter((s) => s.attendance[dateStr]) };
   }
 
   const selectedInfo = useMemo(() => {
     if (!selectedDate) return null;
     const [y, m2, d] = selectedDate.split("-").map(Number);
-    const krDay = KR_DAYS[new Date(y, m2 - 1, d).getDay()];
+    const krDay = ["월","화","수","목","금","토","일"][(new Date(y, m2 - 1, d).getDay() + 6) % 7];
     const scheduled = students.filter((s) => s.days.includes(krDay));
     return { krDay, scheduled, attended: scheduled.filter((s) => s.attendance[selectedDate]), notAttended: scheduled.filter((s) => !s.attendance[selectedDate]) };
   }, [selectedDate, students]);
