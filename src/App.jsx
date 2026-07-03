@@ -63,11 +63,11 @@ export default function App() {
       <style>{globalStyle}</style>
       <div style={{ minHeight: "100vh" }}>
         <Header
-          ={} set={set}
-          onAddStudent={() => setAddOpen(true)}
-          onLogout={logout}
-          onChangePw={() => setChangePwOpen(true)}
-        />
+  tab={tab} setTab={setTab}
+  onAddStudent={() => setAddOpen(true)}
+  onLogout={logout}
+  onChangePw={() => setChangePwOpen(true)}
+/>
 
         <main style={{ maxWidth: 900, margin: "0 auto", padding: "16px 12px 80px" }}>
           {tab === "attendance" && (
