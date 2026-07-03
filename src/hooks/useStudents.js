@@ -87,7 +87,7 @@ export function useStudents() {
 
   // 출석 토글 — isMakeup이 true면 보강으로 기록, 횟수제는 usedSessions 자동 증감
   async function toggleAttendance(studentId, dateStr, isMakeup = false) {
-    const key = `${studentId}_${dateStr}`;
+    const key = `${studentId}`; // 학생 단위로 잠가서 다른 날짜 칸도 순차 처리되게 함
     if (pendingToggles.current.has(key)) return; // 처리 중이면 중복 클릭 무시
     pendingToggles.current.add(key);
 
