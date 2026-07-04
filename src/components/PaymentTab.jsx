@@ -1,10 +1,11 @@
-// 수강료 탭 — 1년 전체 보기 (학생 × 1~12월 표, 칸 안에 납부일/방법 바로 표시, 클릭 시 수정)
-import { useState } from "react";
+// 수강료 탭 — 1년 전체 보기 (검색·반별 분류·퇴원생 필터 포함, 학생 × 1~12월 표)
+import { useState, Fragment } from "react";
 import { C, TODAY, fmtFullDate } from "../constants.js";
-import { Dialog } from "./ui.jsx";
+import { Dialog, EmptyState } from "./ui.jsx";
 
 const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 const METHODS = ["카드", "상품권", "입금", "제로페이", "기타"];
+const CLASS_TYPES = ["유치부", "초등부", "중고등부", "성인반"];
 
 // 학년 문자열을 정렬 가능한 숫자로 변환 (나이순 → 초등 → 중고등 → 기타)
 function gradeSortKey(grade) {
@@ -22,12 +23,25 @@ function gradeSortKey(grade) {
 export function PaymentTab({ students, setPayment, onSelectStudent }) {
   const [year, setYear] = useState(TODAY.getFullYear());
   const [modalInfo, setModalInfo] = useState(null); // { studentId, month }
+  const [search, setSearch] = useState("");
+  const [activeType, setActiveType] = useState("전체");
+  const [showWithdrawn, setShowWithdrawn] = useState(false);
 
   function monthKey(m) {
     return `${year}-${String(m).padStart(2, "0")}`;
   }
 
-  const sortedStudents = [...students].sort((a, b) => gradeSortKey(a.grade) - gradeSortKey(b.grade));
+  const filtered = students
+    .filter((s) => (showWithdrawn ? s.status === "withdrawn" : s.status !== "withdrawn"))
+    .filter((s) => s.name.includes(search) || s.grade.includes(search));
+  const visibleTypes = activeType === "전체" ? CLASS_TYPES : [activeType];
+  const groups = visibleTypes
+    .map((ct) => ({
+      ct,
+      list: filtered.filter((s) => (s.classType || "초등부") === ct).sort((a, b) => gradeSortKey(a.grade) - gradeSortKey(b.grade)),
+    }))
+    .filter((g) => g.list.length > 0);
+  const displayedStudents = groups.flatMap((g) => g.list);
 
   return (
     <div>
@@ -38,81 +52,143 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
           <button onClick={() => setYear((y) => y + 1)} style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 14px", color: C.inkMuted, fontSize: 18 }}>›</button>
         </div>
 
-        <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 8, paddingLeft: 2 }}>
+        <div style={{ fontSize: 12, color: C.inkMuted, margin: "8px 0", paddingLeft: 2 }}>
           💡 칸을 클릭하면 납부일과 납부 방법을 입력·수정할 수 있습니다
+        </div>
+
+        <div style={{ position: "relative", marginBottom: 10 }}>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="이름 또는 학년 검색"
+            style={{ width: "100%", padding: "12px 16px 12px 40px", borderRadius: 10, border: `1px solid ${C.border}`, fontSize: 14, background: C.surface, outline: "none", boxSizing: "border-box" }}
+          />
+          <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: C.inkMuted }}>🔍</span>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
+            {["전체", ...CLASS_TYPES].map((ct) => {
+              const active = activeType === ct;
+              return (
+                <button
+                  key={ct}
+                  onClick={() => setActiveType(ct)}
+                  style={{
+                    padding: "8px 14px", borderRadius: 20, whiteSpace: "nowrap",
+                    border: "1px solid " + (active ? C.accent : C.border),
+                    background: active ? C.accent : "transparent",
+                    color: active ? "#fff" : C.inkMuted,
+                    fontWeight: 600, fontSize: 13, flexShrink: 0,
+                  }}
+                >
+                  {ct}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+            <span style={{ fontSize: 13, color: C.inkMuted, fontWeight: 600 }}>총 {filtered.length}명</span>
+            <button
+              onClick={() => setShowWithdrawn((v) => !v)}
+              style={{
+                fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 14,
+                border: `1px solid ${showWithdrawn ? C.accent : C.border}`,
+                background: showWithdrawn ? C.accentLight : "transparent",
+                color: showWithdrawn ? C.accent : C.inkMuted,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {showWithdrawn ? "← 재원생 보기" : "퇴원생 보기"}
+            </button>
+          </div>
         </div>
       </div>
 
-      <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, marginTop: 12 }}>
-        <table style={{ borderCollapse: "collapse", width: "100%", tableLayout: "fixed" }}>
-          <thead>
-            <tr style={{ background: C.bg, borderBottom: `2px solid ${C.border}` }}>
-              <th style={{ width: 60, padding: "10px 4px", fontSize: 12, color: C.inkMuted, textAlign: "center", borderRight: `1px solid ${C.border}`, position: "sticky", top: 192, zIndex: 15, background: C.bg, borderTopLeftRadius: 12 }}>학생</th>
-              {MONTHS.map((m) => (
-                <th key={m} style={{ padding: "10px 1px", fontSize: 11, color: C.inkMuted, textAlign: "center", position: "sticky", top: 192, zIndex: 15, background: C.bg, ...(m === 12 ? { borderTopRightRadius: 12 } : {}) }}>{m}월</th>
-              ))}
-            </tr>
-          </thead>
-          
-         <tbody>
-            {sortedStudents.map((student, idx) => (
-              <tr key={student.id} style={{ borderBottom: idx === sortedStudents.length - 1 ? "none" : `1px solid ${C.border}` }}>
-                <td
-                  onClick={() => onSelectStudent(student)}
-                  style={{ padding: "10px 4px", cursor: "pointer", borderRight: `1px solid ${C.border}`, overflow: "hidden", textAlign: "center" }}
-                >
-                  <div style={{ fontWeight: 800, fontSize: 16, color: C.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "center" }}>{student.name}</div>
-                  <div style={{ fontSize: 10, color: C.inkMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "center" }}>{student.grade}</div>
-                </td>
-                  {MONTHS.map((m) => {
-                  const key = monthKey(m);
-                  const payment = student.payments.find((p) => p.month === key);
-                  const paid = payment && payment.paid;
-                  const dateShort = paid && payment.paidAt ? payment.paidAt.slice(5).replace("-", "/") : null;
+      {displayedStudents.length === 0 ? (
+        <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, marginTop: 12 }}>
+          <EmptyState text="검색 결과가 없습니다." />
+        </div>
+      ) : (
+        <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, marginTop: 12 }}>
+          <table style={{ borderCollapse: "collapse", width: "100%", tableLayout: "fixed" }}>
+            <thead>
+              <tr style={{ background: C.bg, borderBottom: `2px solid ${C.border}` }}>
+                <th style={{ width: 60, padding: "10px 4px", fontSize: 12, color: C.inkMuted, textAlign: "center", borderRight: `1px solid ${C.border}`, position: "sticky", top: 280, zIndex: 15, background: C.bg, borderTopLeftRadius: 12 }}>학생</th>
+                {MONTHS.map((m) => (
+                  <th key={m} style={{ padding: "10px 1px", fontSize: 11, color: C.inkMuted, textAlign: "center", position: "sticky", top: 280, zIndex: 15, background: C.bg, ...(m === 12 ? { borderTopRightRadius: 12 } : {}) }}>{m}월</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {groups.map((g) => (
+                <Fragment key={g.ct}>
+                  <tr style={{ background: C.bg }}>
+                    <td colSpan={13} style={{ padding: "6px 10px", fontSize: 12, fontWeight: 700, color: C.ink, borderBottom: `1px solid ${C.border}`, borderTop: `1px solid ${C.border}` }}>
+                      {g.ct} <span style={{ fontWeight: 500, color: C.inkMuted }}>{g.list.length}명</span>
+                    </td>
+                  </tr>
+                  {g.list.map((student, idx) => (
+                    <tr key={student.id} style={{ borderBottom: idx === g.list.length - 1 ? "none" : `1px solid ${C.border}` }}>
+                      <td
+                        onClick={() => onSelectStudent(student)}
+                        style={{ padding: "10px 4px", cursor: "pointer", borderRight: `1px solid ${C.border}`, overflow: "hidden", textAlign: "center" }}
+                      >
+                        <div style={{ fontWeight: 800, fontSize: 16, color: C.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "center" }}>{student.name}</div>
+                        <div style={{ fontSize: 10, color: C.inkMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "center" }}>{student.grade}</div>
+                      </td>
+                      {MONTHS.map((m) => {
+                        const key = monthKey(m);
+                        const payment = student.payments.find((p) => p.month === key);
+                        const paid = payment && payment.paid;
+                        const dateShort = paid && payment.paidAt ? payment.paidAt.slice(5).replace("-", "/") : null;
 
+                        return (
+                          <td
+                            key={m}
+                            onClick={() => setModalInfo({ studentId: student.id, month: key })}
+                            style={{ textAlign: "center", padding: "8px 1px", cursor: "pointer", background: paid ? C.greenLight : "transparent", minHeight: 68 }}
+                          >
+                            {paid ? (
+                              <div>
+                                <div style={{ fontSize: 18 }}>✅</div>
+                                <div style={{ fontSize: 12, color: C.green, fontWeight: 700, lineHeight: 1.5 }}>{dateShort}</div>
+                                {payment.method && <div style={{ fontSize: 12, color: C.inkMuted, fontWeight: 600, lineHeight: 1.5 }}>{payment.method}</div>}
+                                <div style={{ fontSize: 11, color: C.ink, fontWeight: 700, lineHeight: 1.5 }}>{(student.fee / 10000).toFixed(0)}만</div>
+                              </div>
+                            ) : (
+                              <span style={{ color: C.border, fontSize: 17 }}>○</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </Fragment>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr style={{ background: C.bg, borderTop: `2px solid ${C.border}` }}>
+                <td style={{ padding: "10px 4px", fontSize: 12, fontWeight: 700, color: C.ink, textAlign: "center", borderRight: `1px solid ${C.border}`, borderBottomLeftRadius: 12 }}>
+                  합계
+                </td>
+                {MONTHS.map((m) => {
+                  const key = monthKey(m);
+                  const total = displayedStudents.reduce((sum, s) => {
+                    const payment = s.payments.find((p) => p.month === key);
+                    return payment && payment.paid ? sum + s.fee : sum;
+                  }, 0);
                   return (
-                    <td
-                      key={m}
-                      onClick={() => setModalInfo({ studentId: student.id, month: key })}
-                      style={{ textAlign: "center", padding: "8px 1px", cursor: "pointer", background: paid ? C.greenLight : "transparent", minHeight: 68 }}
-                    >
-                      {paid ? (
-                        <div>
-                          <div style={{ fontSize: 18 }}>✅</div>
-                          <div style={{ fontSize: 12, color: C.green, fontWeight: 700, lineHeight: 1.5 }}>{dateShort}</div>
-                          {payment.method && <div style={{ fontSize: 12, color: C.inkMuted, fontWeight: 600, lineHeight: 1.5 }}>{payment.method}</div>}
-                          <div style={{ fontSize: 11, color: C.ink, fontWeight: 700, lineHeight: 1.5 }}>{(student.fee / 10000).toFixed(0)}만</div>
-                        </div>
-                      ) : (
-                        <span style={{ color: C.border, fontSize: 17 }}>○</span>
-                      )}
+                    <td key={m} style={{ padding: "8px 1px", textAlign: "center", fontSize: 12, fontWeight: 700, color: C.accent, ...(m === 12 ? { borderBottomRightRadius: 12 } : {}) }}>
+                      {total > 0 ? `${total.toLocaleString()}원` : "-"}
                     </td>
                   );
                 })}
               </tr>
-            ))}
-         </tbody>
-          <tfoot>
-            <tr style={{ background: C.bg, borderTop: `2px solid ${C.border}` }}>
-              <td style={{ padding: "10px 4px", fontSize: 12, fontWeight: 700, color: C.ink, textAlign: "center", borderRight: `1px solid ${C.border}`, borderBottomLeftRadius: 12 }}>
-                합계
-              </td>
-              {MONTHS.map((m) => {
-                const key = monthKey(m);
-                const total = students.reduce((sum, s) => {
-                  const payment = s.payments.find((p) => p.month === key);
-                  return payment && payment.paid ? sum + s.fee : sum;
-                }, 0);
-                return (
-                  <td key={m} style={{ padding: "8px 1px", textAlign: "center", fontSize: 12, fontWeight: 700, color: C.accent, ...(m === 12 ? { borderBottomRightRadius: 12 } : {}) }}>
-                    {total > 0 ? `${total.toLocaleString()}원` : "-"}
-                  </td>
-                );
-              })}
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+            </tfoot>
+          </table>
+        </div>
+      )}
 
       {modalInfo && (
         <PaymentEditDialog
