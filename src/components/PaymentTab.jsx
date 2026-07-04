@@ -6,6 +6,19 @@ import { Dialog } from "./ui.jsx";
 const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 const METHODS = ["카드", "상품권", "입금", "제로페이", "기타"];
 
+// 학년 문자열을 정렬 가능한 숫자로 변환 (나이순 → 초등 → 중고등 → 기타)
+function gradeSortKey(grade) {
+  const se = grade.match(/^(\d+)세$/);
+  if (se) return Number(se[1]);
+  const cho = grade.match(/^초(\d+)/);
+  if (cho) return 100 + Number(cho[1]);
+  const jung = grade.match(/^중(\d+)/);
+  if (jung) return 200 + Number(jung[1]);
+  const go = grade.match(/^고(\d+)/);
+  if (go) return 300 + Number(go[1]);
+  return 400;
+}
+
 export function PaymentTab({ students, setPayment, onSelectStudent }) {
   const [year, setYear] = useState(TODAY.getFullYear());
   const [modalInfo, setModalInfo] = useState(null); // { studentId, month }
@@ -13,6 +26,8 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
   function monthKey(m) {
     return `${year}-${String(m).padStart(2, "0")}`;
   }
+
+  const sortedStudents = [...students].sort((a, b) => gradeSortKey(a.grade) - gradeSortKey(b.grade));
 
   return (
     <div>
@@ -38,9 +53,10 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
               ))}
             </tr>
           </thead>
-          <tbody>
-            {students.map((student, idx) => (
-              <tr key={student.id} style={{ borderBottom: idx === students.length - 1 ? "none" : `1px solid ${C.border}` }}>
+          
+         <tbody>
+            {sortedStudents.map((student, idx) => (
+              <tr key={student.id} style={{ borderBottom: idx === sortedStudents.length - 1 ? "none" : `1px solid ${C.border}` }}>
                 <td
                   onClick={() => onSelectStudent(student)}
                   style={{ padding: "10px 4px", cursor: "pointer", borderRight: `1px solid ${C.border}`, overflow: "hidden", textAlign: "center" }}
