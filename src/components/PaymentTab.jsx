@@ -38,7 +38,6 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
               ))}
             </tr>
           </thead>
-          
           <tbody>
             {students.map((student, idx) => (
               <tr key={student.id} style={{ borderBottom: idx === students.length - 1 ? "none" : `1px solid ${C.border}` }}>
@@ -78,7 +77,8 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
             ))}
          </tbody>
           <tfoot>
-            <td style={{ padding: "10px 4px", fontSize: 12, fontWeight: 700, color: C.ink, textAlign: "center", borderRight: `1px solid ${C.border}`, borderBottomLeftRadius: 12 }}>
+            <tr style={{ background: C.bg, borderTop: `2px solid ${C.border}` }}>
+              <td style={{ padding: "10px 4px", fontSize: 12, fontWeight: 700, color: C.ink, textAlign: "center", borderRight: `1px solid ${C.border}`, borderBottomLeftRadius: 12 }}>
                 합계
               </td>
               {MONTHS.map((m) => {
