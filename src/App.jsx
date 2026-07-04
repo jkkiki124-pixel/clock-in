@@ -85,7 +85,7 @@ export default function App() {
 
           {tab === "payment" && (
             <PaymentTab
-              students={students.filter((s) => s.status !== "withdrawn")}
+              students={students}
               setPayment={setPayment}
               onSelectStudent={handleSelectStudent}
             />
