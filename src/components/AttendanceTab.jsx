@@ -52,7 +52,7 @@ function WeekView({ students, weekDates, weekOffset, setWeekOffset, toggleAttend
 
   return (
     <div>
-      <div style={{ position: "sticky", top: 0, zIndex: 20, background: C.bg, paddingBottom: 8 }}>
+      <div style={{ position: "sticky", top: 100, zIndex: 20, background: C.bg, paddingBottom: 8 }}>
         <NavBar
           label={weekLabel}
           subLabel={weekOffset === 0 ? "이번 주" : null}
