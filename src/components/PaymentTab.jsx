@@ -16,26 +16,29 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.surface, borderRadius: 12, padding: "12px 16px", marginBottom: 12, border: `1px solid ${C.border}` }}>
-        <button onClick={() => setYear((y) => y - 1)} style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 14px", color: C.inkMuted, fontSize: 18 }}>‹</button>
-        <div style={{ fontWeight: 700, fontSize: 17 }}>{year}년 수강료 현황</div>
-        <button onClick={() => setYear((y) => y + 1)} style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 14px", color: C.inkMuted, fontSize: 18 }}>›</button>
+      <div style={{ position: "sticky", top: 100, zIndex: 25, background: C.bg, paddingBottom: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.surface, borderRadius: 12, padding: "12px 16px", border: `1px solid ${C.border}` }}>
+          <button onClick={() => setYear((y) => y - 1)} style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 14px", color: C.inkMuted, fontSize: 18 }}>‹</button>
+          <div style={{ fontWeight: 700, fontSize: 17 }}>{year}년 수강료 현황</div>
+          <button onClick={() => setYear((y) => y + 1)} style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 14px", color: C.inkMuted, fontSize: 18 }}>›</button>
+        </div>
+
+        <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 8, paddingLeft: 2 }}>
+          💡 칸을 클릭하면 납부일과 납부 방법을 입력·수정할 수 있습니다
+        </div>
       </div>
 
-      <div style={{ fontSize: 12, color: C.inkMuted, marginBottom: 8, paddingLeft: 2 }}>
-        💡 칸을 클릭하면 납부일과 납부 방법을 입력·수정할 수 있습니다
-      </div>
-
-      <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+      <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden", marginTop: 12 }}>
         <table style={{ borderCollapse: "collapse", width: "100%", tableLayout: "fixed" }}>
           <thead>
             <tr style={{ background: C.bg, borderBottom: `2px solid ${C.border}` }}>
-              <th style={{ width: 60, padding: "10px 4px", fontSize: 12, color: C.inkMuted, textAlign: "center", borderRight: `1px solid ${C.border}`, position: "sticky", top: 100, zIndex: 15, background: C.bg }}>학생</th>
+              <th style={{ width: 60, padding: "10px 4px", fontSize: 12, color: C.inkMuted, textAlign: "center", borderRight: `1px solid ${C.border}`, position: "sticky", top: 180, zIndex: 15, background: C.bg }}>학생</th>
               {MONTHS.map((m) => (
-                <th key={m} style={{ padding: "10px 1px", fontSize: 11, color: C.inkMuted, textAlign: "center", position: "sticky", top: 100, zIndex: 15, background: C.bg }}>{m}월</th>
+                <th key={m} style={{ padding: "10px 1px", fontSize: 11, color: C.inkMuted, textAlign: "center", position: "sticky", top: 180, zIndex: 15, background: C.bg }}>{m}월</th>
               ))}
             </tr>
           </thead>
+          
           <tbody>
             {students.map((student, idx) => (
               <tr key={student.id} style={{ borderBottom: idx === students.length - 1 ? "none" : `1px solid ${C.border}` }}>
