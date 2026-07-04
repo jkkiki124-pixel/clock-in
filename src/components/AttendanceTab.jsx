@@ -3,6 +3,17 @@ import { useState, useMemo, useEffect } from "react";
 import { C, TODAY, fmtDate, fmtFullDate, getWeekDates, KR_HOLIDAYS_2026 } from "../constants.js";
 import { SummaryCard, EmptyState } from "./ui.jsx";
 
+// 횟수제 학생의 특정 출석일이 전체 회차 중 몇 회차인지 계산 (다 채우면 1회부터 순환)
+function getSessionCycle(student, dateStr) {
+  if (student.type !== "횟수제") return null;
+  const attendedDates = Object.keys(student.attendance)
+    .filter((d) => student.attendance[d]) // true 또는 "makeup"
+    .sort();
+  const rank = attendedDates.indexOf(dateStr) + 1;
+  if (rank === 0) return null;
+  return ((rank - 1) % student.totalSessions) + 1;
+}
+
 export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, toggleAttendance, onSelectStudent, notes, setNote }) {
   const [viewMode, setViewMode] = useState("week");
   const [calMonth, setCalMonth] = useState({ year: TODAY.getFullYear(), month: TODAY.getMonth() });
@@ -88,18 +99,16 @@ function WeekView({ students, weekDates, weekOffset, setWeekOffset, toggleAttend
 }
 
 function WeekRow({ student, weekDates, todayStr, onToggle, onSelect, isLast }) {
-  const isExhausted = student.type === "횟수제" && student.usedSessions >= student.totalSessions;
-  const remaining = student.type === "횟수제" ? student.totalSessions - student.usedSessions : null;
   const DAY_NAMES = ["월", "화", "수", "목", "금", "토", "일"];
-  
+
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "100px repeat(7, 1fr)", borderBottom: isLast ? "none" : `1px solid ${C.border}`, background: isExhausted ? "#fff8f6" : C.surface }}>
+    <div style={{ display: "grid", gridTemplateColumns: "100px repeat(7, 1fr)", borderBottom: isLast ? "none" : `1px solid ${C.border}`, background: C.surface }}>
       <div onClick={() => onSelect(student)} style={{ padding: "8px", cursor: "pointer", display: "flex", flexDirection: "column", justifyContent: "center", gap: 3, borderRight: `1px solid ${C.border}` }}>
         <div style={{ fontWeight: 600, fontSize: 15 }}>{student.name}</div>
         <div style={{ fontSize: 12, color: C.inkMuted }}>{student.grade}</div>
         {student.type === "횟수제" && (
-          <div style={{ fontSize: 12, fontWeight: 700, color: isExhausted ? C.accent : C.green, background: isExhausted ? C.accentLight : C.greenLight, borderRadius: 4, padding: "1px 4px", display: "inline-block" }}>
-            {isExhausted ? "❗소진" : `잔여${remaining}회`}
+          <div style={{ fontSize: 12, fontWeight: 700, color: C.green, background: C.greenLight, borderRadius: 4, padding: "1px 4px", display: "inline-block" }}>
+            {student.totalSessions}회
           </div>
         )}
         {student.type === "월정액" && (
@@ -115,23 +124,24 @@ function WeekRow({ student, weekDates, todayStr, onToggle, onSelect, isLast }) {
         const isChecked = status === true;
         const isMakeup = status === "makeup";
         const isToday = dateStr === todayStr;
-        const canCheck = !isExhausted || isChecked || isMakeup;
+        const cycle = (isChecked || isMakeup) ? getSessionCycle(student, dateStr) : null;
 
         return (
           <div
             key={i}
             style={{
-              borderLeft: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center",
+              borderLeft: `1px solid ${C.border}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
               background: isToday && !isChecked && !isMakeup ? "#fffaf9" : isChecked ? C.greenLight : isMakeup ? C.yellowLight : isScheduled ? "#fafafa" : "transparent",
-              cursor: canCheck ? "pointer" : "default",
+              cursor: "pointer",
               minHeight: 56, transition: "background 0.1s",
             }}
-            onClick={() => canCheck && onToggle(student.id, dateStr, !isScheduled)}
+            onClick={() => onToggle(student.id, dateStr, !isScheduled)}
           >
             {isChecked ? <span style={{ fontSize: 24 }}>✅</span>
               : isMakeup ? <span style={{ fontSize: 13, fontWeight: 700, color: C.yellow }}>보강</span>
               : isScheduled ? <span style={{ fontSize: 22, color: C.border }}>○</span>
               : <span style={{ color: "#ddd", fontSize: 14 }}>—</span>}
+            {cycle !== null && <span style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, marginTop: 2 }}>{cycle}회</span>}
           </div>
         );
       })}
@@ -291,10 +301,9 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
                 {selectedInfo.notAttended.length > 0 && (
                   <div>
                     <div style={{ padding: "10px 16px 4px", fontSize: 13, fontWeight: 700, color: C.inkMuted }}>○ 미출석</div>
-                    {selectedInfo.notAttended.map((s, i) => {
-                      const disabled = s.type === "횟수제" && s.usedSessions >= s.totalSessions;
-                      return <DayRow key={s.id} student={s} dateStr={selectedDate} checked={false} onToggle={toggleAttendance} onSelect={onSelectStudent} isLast={i===selectedInfo.notAttended.length-1} disabled={disabled} />;
-                    })}
+                    {selectedInfo.notAttended.map((s, i) => (
+  <DayRow key={s.id} student={s} dateStr={selectedDate} checked={false} onToggle={toggleAttendance} onSelect={onSelectStudent} isLast={i===selectedInfo.notAttended.length-1} />
+))}
                   </div>
                 )}
               </>
@@ -306,9 +315,8 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
   );
 }
 
-function DayRow({ student, dateStr, checked, onToggle, onSelect, isLast, disabled }) {
-  const isExhausted = student.type === "횟수제" && student.usedSessions >= student.totalSessions;
-  const remaining = student.type === "횟수제" ? student.totalSessions - student.usedSessions : null;
+function DayRow({ student, dateStr, checked, onToggle, onSelect, isLast }) {
+  const cycle = checked ? getSessionCycle(student, dateStr) : null;
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 16px", borderBottom: isLast ? "none" : `1px solid ${C.border}`, background: checked ? "#f9fffc" : C.surface }}>
@@ -321,17 +329,20 @@ function DayRow({ student, dateStr, checked, onToggle, onSelect, isLast, disable
             <div style={{ fontWeight: 600, fontSize: 15 }}>{student.name}</div>
             <div style={{ fontSize: 12, color: C.inkMuted }}>
               {student.grade}
-              {student.type === "횟수제" && <span style={{ marginLeft: 6, color: isExhausted ? C.accent : C.green, fontWeight: 600 }}>{isExhausted ? "❗ 소진" : `잔여 ${remaining}회`}</span>}
+              {student.type === "횟수제" && <span style={{ marginLeft: 6, color: C.green, fontWeight: 600 }}>{student.totalSessions}회</span>}
             </div>
           </div>
         </div>
       </div>
-      <button
-        onClick={() => !disabled && onToggle(student.id, dateStr)}
-        style={{ width: 44, height: 44, borderRadius: 10, border: checked ? "none" : `2px solid ${disabled ? C.border : C.accent}`, background: checked ? C.greenLight : disabled ? C.bg : C.accentLight, color: checked ? C.green : disabled ? C.border : C.accent, fontSize: checked ? 20 : 18, display: "flex", alignItems: "center", justifyContent: "center", cursor: disabled ? "not-allowed" : "pointer", flexShrink: 0 }}
-      >
-        {checked ? "✅" : "○"}
-      </button>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+        <button
+          onClick={() => onToggle(student.id, dateStr)}
+          style={{ width: 44, height: 44, borderRadius: 10, border: checked ? "none" : `2px solid ${C.accent}`, background: checked ? C.greenLight : C.accentLight, color: checked ? C.green : C.accent, fontSize: checked ? 20 : 18, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+        >
+          {checked ? "✅" : "○"}
+        </button>
+        {cycle !== null && <span style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted }}>{cycle}회</span>}
+      </div>
     </div>
   );
 }
