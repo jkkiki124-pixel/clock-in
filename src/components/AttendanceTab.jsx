@@ -14,9 +14,23 @@ function getSessionCycle(student, dateStr) {
   return ((rank - 1) % student.totalSessions) + 1;
 }
 
+// 학년 문자열을 정렬 가능한 숫자로 변환 (나이순 → 초등 → 중고등 → 기타)
+function gradeSortKey(grade) {
+  const se = grade.match(/^(\d+)세$/);
+  if (se) return Number(se[1]);
+  const cho = grade.match(/^초(\d+)/);
+  if (cho) return 100 + Number(cho[1]);
+  const jung = grade.match(/^중(\d+)/);
+  if (jung) return 200 + Number(jung[1]);
+  const go = grade.match(/^고(\d+)/);
+  if (go) return 300 + Number(go[1]);
+  return 400;
+}
+
 export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, toggleAttendance, onSelectStudent, notes, setNote }) {
   const [viewMode, setViewMode] = useState("week");
   const [calMonth, setCalMonth] = useState({ year: TODAY.getFullYear(), month: TODAY.getMonth() });
+  const sortedStudents = [...students].sort((a, b) => gradeSortKey(a.grade) - gradeSortKey(b.grade));
 
   return (
     <div>
@@ -38,8 +52,8 @@ export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, 
       </div>
 
       {viewMode === "week"
-        ? <WeekView students={students} weekDates={weekDates} weekOffset={weekOffset} setWeekOffset={setWeekOffset} toggleAttendance={toggleAttendance} onSelectStudent={onSelectStudent} />
-        : <CalendarView students={students} calMonth={calMonth} setCalMonth={setCalMonth} toggleAttendance={toggleAttendance} onSelectStudent={onSelectStudent} notes={notes} setNote={setNote} />
+        ? <WeekView students={sortedStudents} weekDates={weekDates} weekOffset={weekOffset} setWeekOffset={setWeekOffset} toggleAttendance={toggleAttendance} onSelectStudent={onSelectStudent} />
+        : <CalendarView students={sortedStudents} calMonth={calMonth} setCalMonth={setCalMonth} toggleAttendance={toggleAttendance} onSelectStudent={onSelectStudent} notes={notes} setNote={setNote} />
       }
     </div>
   );
