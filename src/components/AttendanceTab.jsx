@@ -52,14 +52,16 @@ function WeekView({ students, weekDates, weekOffset, setWeekOffset, toggleAttend
 
   return (
     <div>
-      <NavBar
-        label={weekLabel}
-        subLabel={weekOffset === 0 ? "이번 주" : null}
-        onPrev={() => setWeekOffset((w) => w - 1)}
-        onNext={() => setWeekOffset((w) => w + 1)}
-        onReset={weekOffset !== 0 ? () => setWeekOffset(0) : null}
-        resetLabel="이번 주로"
-      />
+      <div style={{ position: "sticky", top: 0, zIndex: 20, background: C.bg, paddingBottom: 8 }}>
+        <NavBar
+          label={weekLabel}
+          subLabel={weekOffset === 0 ? "이번 주" : null}
+          onPrev={() => setWeekOffset((w) => w - 1)}
+          onNext={() => setWeekOffset((w) => w + 1)}
+          onReset={weekOffset !== 0 ? () => setWeekOffset(0) : null}
+          resetLabel="이번 주로"
+        />
+      </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "0 0 12px 4px", fontSize: 13, color: C.inkMuted }}>
         <span>💡 수업 요일이 아닌 칸을 클릭하면 <b style={{ color: C.yellow }}>보강</b>으로 표시됩니다</span>
