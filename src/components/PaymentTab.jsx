@@ -28,13 +28,13 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
         </div>
       </div>
 
-      <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden", marginTop: 12 }}>
+      <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, marginTop: 12 }}>
         <table style={{ borderCollapse: "collapse", width: "100%", tableLayout: "fixed" }}>
           <thead>
             <tr style={{ background: C.bg, borderBottom: `2px solid ${C.border}` }}>
-              <th style={{ width: 60, padding: "10px 4px", fontSize: 12, color: C.inkMuted, textAlign: "center", borderRight: `1px solid ${C.border}`, position: "sticky", top: 180, zIndex: 15, background: C.bg }}>학생</th>
+              <th style={{ width: 60, padding: "10px 4px", fontSize: 12, color: C.inkMuted, textAlign: "center", borderRight: `1px solid ${C.border}`, position: "sticky", top: 180, zIndex: 15, background: C.bg, borderTopLeftRadius: 12 }}>학생</th>
               {MONTHS.map((m) => (
-                <th key={m} style={{ padding: "10px 1px", fontSize: 11, color: C.inkMuted, textAlign: "center", position: "sticky", top: 180, zIndex: 15, background: C.bg }}>{m}월</th>
+                <th key={m} style={{ padding: "10px 1px", fontSize: 11, color: C.inkMuted, textAlign: "center", position: "sticky", top: 180, zIndex: 15, background: C.bg, ...(m === 12 ? { borderTopRightRadius: 12 } : {}) }}>{m}월</th>
               ))}
             </tr>
           </thead>
@@ -78,8 +78,7 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
             ))}
          </tbody>
           <tfoot>
-            <tr style={{ background: C.bg, borderTop: `2px solid ${C.border}` }}>
-              <td style={{ padding: "10px 4px", fontSize: 12, fontWeight: 700, color: C.ink, textAlign: "center", borderRight: `1px solid ${C.border}` }}>
+            <td style={{ padding: "10px 4px", fontSize: 12, fontWeight: 700, color: C.ink, textAlign: "center", borderRight: `1px solid ${C.border}`, borderBottomLeftRadius: 12 }}>
                 합계
               </td>
               {MONTHS.map((m) => {
@@ -89,7 +88,7 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
                   return payment && payment.paid ? sum + s.fee : sum;
                 }, 0);
                 return (
-                  <td key={m} style={{ padding: "8px 1px", textAlign: "center", fontSize: 12, fontWeight: 700, color: C.accent }}>
+                  <td key={m} style={{ padding: "8px 1px", textAlign: "center", fontSize: 12, fontWeight: 700, color: C.accent, ...(m === 12 ? { borderBottomRightRadius: 12 } : {}) }}>
                     {total > 0 ? `${total.toLocaleString()}원` : "-"}
                   </td>
                 );
