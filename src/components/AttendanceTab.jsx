@@ -1,4 +1,4 @@
-// 출석부 탭 — 주간 그리드 뷰 + 달력 뷰 (보강 체크 지원)
+// 출석부 탭 — 주간 그리드 뷰 + 달력 뷰 (보강 체크 지원, 요일/성인반 분류 필터 포함)
 import { useState, useMemo, useEffect } from "react";
 import { C, TODAY, fmtDate, fmtFullDate, getWeekDates, KR_HOLIDAYS_2026 } from "../constants.js";
 import { SummaryCard, EmptyState } from "./ui.jsx";
@@ -25,6 +25,17 @@ function gradeSortKey(grade) {
   const go = grade.match(/^고(\d+)/);
   if (go) return 300 + Number(go[1]);
   return 400;
+}
+
+// 주간 출석부 요일 분류 탭
+const DAY_FILTERS = ["전체", "월~목요일", "금요일", "토요일", "일요일", "성인반"];
+const DAY_FILTER_MAP = { "월~목요일": ["월", "화", "수", "목"], "금요일": ["금"], "토요일": ["토"], "일요일": ["일"] };
+
+function matchesDayFilter(student, filterId) {
+  if (filterId === "전체") return true;
+  if (filterId === "성인반") return student.classType === "성인반";
+  if (student.classType === "성인반") return false;
+  return student.days.some((d) => DAY_FILTER_MAP[filterId].includes(d));
 }
 
 export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, toggleAttendance, onSelectStudent, notes, setNote }) {
@@ -63,6 +74,8 @@ function WeekView({ students, weekDates, weekOffset, setWeekOffset, toggleAttend
   const todayStr = fmtFullDate(TODAY);
   const weekLabel = `${weekDates[0].getMonth() + 1}/${weekDates[0].getDate()} ~ ${weekDates[6].getMonth() + 1}/${weekDates[6].getDate()}`;
   const DAY_NAMES = ["월", "화", "수", "목", "금", "토", "일"];
+  const [dayFilter, setDayFilter] = useState("전체");
+  const filteredStudents = students.filter((s) => matchesDayFilter(s, dayFilter));
 
   return (
     <div>
@@ -75,41 +88,68 @@ function WeekView({ students, weekDates, weekOffset, setWeekOffset, toggleAttend
           onReset={weekOffset !== 0 ? () => setWeekOffset(0) : null}
           resetLabel="이번 주로"
         />
-      </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "0 0 12px 4px", fontSize: 13, color: C.inkMuted }}>
-        <span>💡 수업 요일이 아닌 칸을 클릭하면 <b style={{ color: C.yellow }}>보강</b>으로 표시됩니다</span>
-      </div>
-
-      <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "100px repeat(7, 1fr)", borderBottom: `2px solid ${C.border}`, background: C.bg }}>
-          <div style={{ padding: "10px 8px", fontSize: 13, color: C.inkMuted, fontWeight: 600 }}>학생</div>
-          {weekDates.map((d, i) => {
-            const isToday = fmtFullDate(d) === todayStr;
-           const isSun = i === 6;
-           const isSat = i === 5;
-      
+        <div style={{ display: "flex", gap: 6, overflowX: "auto", marginTop: 8, paddingBottom: 2 }}>
+          {DAY_FILTERS.map((f) => {
+            const active = dayFilter === f;
             return (
-              <div key={i} style={{ padding: "8px 2px", textAlign: "center", background: isToday ? C.accentLight : "transparent", borderLeft: `1px solid ${C.border}` }}>
-                <div style={{ fontSize: 12, color: isToday ? C.accent : isSun ? "#E04040" : isSat ? C.blue : C.inkMuted, fontWeight: 700 }}>{DAY_NAMES[i]}</div>
-                <div style={{ fontSize: 14, fontWeight: isToday ? 700 : 600, color: isToday ? C.accent : C.ink }}>{fmtDate(d)}</div>
-              </div>
+              <button
+                key={f}
+                onClick={() => setDayFilter(f)}
+                style={{
+                  padding: "8px 14px", borderRadius: 20, whiteSpace: "nowrap",
+                  border: "1px solid " + (active ? C.accent : C.border),
+                  background: active ? C.accent : C.surface,
+                  color: active ? "#fff" : C.inkMuted,
+                  fontWeight: 600, fontSize: 13, flexShrink: 0,
+                }}
+              >
+                {f}
+              </button>
             );
           })}
         </div>
-
-        {students.map((student, idx) => (
-          <WeekRow
-            key={student.id}
-            student={student}
-            weekDates={weekDates}
-            todayStr={todayStr}
-            onToggle={toggleAttendance}
-            onSelect={onSelectStudent}
-            isLast={idx === students.length - 1}
-          />
-        ))}
       </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "12px 0 12px 4px", fontSize: 13, color: C.inkMuted }}>
+        <span>💡 수업 요일이 아닌 칸을 클릭하면 <b style={{ color: C.yellow }}>보강</b>으로 표시됩니다</span>
+      </div>
+
+      {filteredStudents.length === 0 ? (
+        <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}` }}>
+          <EmptyState text="해당하는 학생이 없습니다." />
+        </div>
+      ) : (
+        <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "100px repeat(7, 1fr)", borderBottom: `2px solid ${C.border}`, background: C.bg }}>
+            <div style={{ padding: "10px 8px", fontSize: 13, color: C.inkMuted, fontWeight: 600 }}>학생</div>
+            {weekDates.map((d, i) => {
+              const isToday = fmtFullDate(d) === todayStr;
+             const isSun = i === 6;
+             const isSat = i === 5;
+
+              return (
+                <div key={i} style={{ padding: "8px 2px", textAlign: "center", background: isToday ? C.accentLight : "transparent", borderLeft: `1px solid ${C.border}` }}>
+                  <div style={{ fontSize: 12, color: isToday ? C.accent : isSun ? "#E04040" : isSat ? C.blue : C.inkMuted, fontWeight: 700 }}>{DAY_NAMES[i]}</div>
+                  <div style={{ fontSize: 14, fontWeight: isToday ? 700 : 600, color: isToday ? C.accent : C.ink }}>{fmtDate(d)}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          {filteredStudents.map((student, idx) => (
+            <WeekRow
+              key={student.id}
+              student={student}
+              weekDates={weekDates}
+              todayStr={todayStr}
+              onToggle={toggleAttendance}
+              onSelect={onSelectStudent}
+              isLast={idx === filteredStudents.length - 1}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -197,7 +237,17 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
     const [y, m2, d] = selectedDate.split("-").map(Number);
     const krDay = ["월","화","수","목","금","토","일"][(new Date(y, m2 - 1, d).getDay() + 6) % 7];
     const scheduled = students.filter((s) => s.days.includes(krDay));
-    return { krDay, scheduled, attended: scheduled.filter((s) => s.attendance[selectedDate]), notAttended: scheduled.filter((s) => !s.attendance[selectedDate]) };
+    const regular = scheduled.filter((s) => s.classType !== "성인반");
+    const adults = scheduled.filter((s) => s.classType === "성인반");
+    return {
+      krDay,
+      scheduled,
+      attended: scheduled.filter((s) => s.attendance[selectedDate]),
+      regularAttended: regular.filter((s) => s.attendance[selectedDate]),
+      regularNotAttended: regular.filter((s) => !s.attendance[selectedDate]),
+      adultAttended: adults.filter((s) => s.attendance[selectedDate]),
+      adultNotAttended: adults.filter((s) => !s.attendance[selectedDate]),
+    };
   }, [selectedDate, students]);
 
   return (
@@ -306,20 +356,31 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
             ? <EmptyState text="이 날은 수업 예정 학생이 없습니다." />
             : (
               <>
-                {selectedInfo.attended.length > 0 && (
+                {selectedInfo.regularAttended.length > 0 && (
                   <div>
                     <div style={{ padding: "10px 16px 4px", fontSize: 13, fontWeight: 700, color: C.green }}>✅ 출석 완료</div>
-                    {selectedInfo.attended.map((s, i) => (
-                      <DayRow key={s.id} student={s} dateStr={selectedDate} checked onToggle={toggleAttendance} onSelect={onSelectStudent} isLast={i===selectedInfo.attended.length-1 && selectedInfo.notAttended.length===0} />
+                    {selectedInfo.regularAttended.map((s, i) => (
+                      <DayRow key={s.id} student={s} dateStr={selectedDate} checked onToggle={toggleAttendance} onSelect={onSelectStudent} isLast={i===selectedInfo.regularAttended.length-1} />
                     ))}
                   </div>
                 )}
-                {selectedInfo.notAttended.length > 0 && (
+                {selectedInfo.regularNotAttended.length > 0 && (
                   <div>
                     <div style={{ padding: "10px 16px 4px", fontSize: 13, fontWeight: 700, color: C.inkMuted }}>○ 미출석</div>
-                    {selectedInfo.notAttended.map((s, i) => (
-  <DayRow key={s.id} student={s} dateStr={selectedDate} checked={false} onToggle={toggleAttendance} onSelect={onSelectStudent} isLast={i===selectedInfo.notAttended.length-1} />
-))}
+                    {selectedInfo.regularNotAttended.map((s, i) => (
+                      <DayRow key={s.id} student={s} dateStr={selectedDate} checked={false} onToggle={toggleAttendance} onSelect={onSelectStudent} isLast={i===selectedInfo.regularNotAttended.length-1} />
+                    ))}
+                  </div>
+                )}
+                {(selectedInfo.adultAttended.length > 0 || selectedInfo.adultNotAttended.length > 0) && (
+                  <div>
+                    <div style={{ padding: "10px 16px 4px", fontSize: 13, fontWeight: 700, color: C.blue }}>🧑 성인반</div>
+                    {selectedInfo.adultAttended.map((s, i) => (
+                      <DayRow key={s.id} student={s} dateStr={selectedDate} checked onToggle={toggleAttendance} onSelect={onSelectStudent} isLast={i===selectedInfo.adultAttended.length-1 && selectedInfo.adultNotAttended.length===0} />
+                    ))}
+                    {selectedInfo.adultNotAttended.map((s, i) => (
+                      <DayRow key={s.id} student={s} dateStr={selectedDate} checked={false} onToggle={toggleAttendance} onSelect={onSelectStudent} isLast={i===selectedInfo.adultNotAttended.length-1} />
+                    ))}
                   </div>
                 )}
               </>
