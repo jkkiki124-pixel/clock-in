@@ -36,7 +36,11 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
   const groups = visibleTypes
     .map((ct) => ({
       ct,
-      list: filtered.filter((s) => (s.classType || "초등부") === ct).sort((a, b) => gradeSortKey(a.grade) - gradeSortKey(b.grade)),
+      list: filtered.filter((s) => (s.classType || "초등부") === ct).sort((a, b) => {
+        const withdrawnDiff = (a.status === "withdrawn" ? 1 : 0) - (b.status === "withdrawn" ? 1 : 0);
+        if (withdrawnDiff !== 0) return withdrawnDiff;
+        return gradeSortKey(a.grade) - gradeSortKey(b.grade);
+      }),
     }))
     .filter((g) => g.list.length > 0);
   const displayedStudents = groups.flatMap((g) => g.list);
