@@ -64,12 +64,12 @@ export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, 
         </div>
       </div>
 
-      {viewMode === "week"
-
-      {viewMode === "week"
-        ? <WeekView students={sortedStudents} weekDates={weekDates} weekOffset={weekOffset} setWeekOffset={setWeekOffset} toggleAttendance={toggleAttendance} onSelectStudent={onSelectStudent} />
-        : <CalendarView students={sortedStudents} calMonth={calMonth} setCalMonth={setCalMonth} toggleAttendance={toggleAttendance} onSelectStudent={onSelectStudent} notes={notes} setNote={setNote} />
-      }
+      <div style={{ marginTop: 12 }}>
+        {viewMode === "week"
+          ? <WeekView students={sortedStudents} weekDates={weekDates} weekOffset={weekOffset} setWeekOffset={setWeekOffset} toggleAttendance={toggleAttendance} onSelectStudent={onSelectStudent} />
+          : <CalendarView students={sortedStudents} calMonth={calMonth} setCalMonth={setCalMonth} toggleAttendance={toggleAttendance} onSelectStudent={onSelectStudent} notes={notes} setNote={setNote} />
+        }
+      </div>
     </div>
   );
 }
@@ -421,14 +421,14 @@ function DayRow({ student, dateStr, checked, onToggle, onSelect }) {
           </div>
         </div>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-        {cycle !== null && <span style={{ fontSize: 14, fontWeight: 700, color: C.inkMuted }}>{cycle}회</span>}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, flexShrink: 0 }}>
         <button
           onClick={() => onToggle(student.id, dateStr)}
           style={{ width: 36, height: 36, borderRadius: 8, border: checked ? "none" : `2px solid ${C.accent}`, background: checked ? C.greenLight : C.accentLight, color: checked ? C.green : C.accent, fontSize: checked ? 16 : 15, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
         >
           {checked ? "✅" : "○"}
         </button>
+        {cycle !== null && <span style={{ fontSize: 9, fontWeight: 700, color: C.inkMuted }}>{cycle}회</span>}
       </div>
     </div>
   );
