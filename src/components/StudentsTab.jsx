@@ -91,15 +91,22 @@ export function StudentsTab({ students, onSelectStudent }) {
   );
 }
 
+// 횟수제 학생이 마지막으로 출석한 회차를 계산 (전체 회차 안에서 순환, 출석부와 동일한 로직)
+function getLastSessionCycle(student) {
+  const attendedDates = Object.keys(student.attendance).filter((d) => student.attendance[d]).sort();
+  if (attendedDates.length === 0) return 0;
+  return ((attendedDates.length - 1) % student.totalSessions) + 1;
+}
+
 function StudentRow({ student, onSelect }) {
-  const info = `${student.grade} · ${student.days.join(",")} · ${student.type}${student.type === "횟수제" ? ` (${student.usedSessions}/${student.totalSessions}회)` : ""}`;
+  const info = `${student.grade} · ${student.days.join(",")} · ${student.type}${student.type === "횟수제" ? ` (${getLastSessionCycle(student)}/${student.totalSessions}회)` : ""}`;
   return (
     <div
       onClick={() => onSelect(student)}
-      style={{ display: "flex", alignItems: "center", padding: "14px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.surface, cursor: "pointer", gap: 8, minWidth: 0 }}
+      style={{ display: "flex", alignItems: "center", padding: "14px 14px 14px 20px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.surface, cursor: "pointer", gap: 8, minWidth: 0 }}
     >
       <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap", rowGap: 2 }}>
-        <span style={{ fontWeight: 800, fontSize: 20, color: C.ink }}>{student.name}</span>
+        <span style={{ fontWeight: 700, fontSize: 20, color: "rgba(0,0,0,0.75)" }}>{student.name}</span>
         <span style={{ fontSize: 13, color: C.inkMuted }}>{info}</span>
       </div>
       <span style={{ color: C.border, fontSize: 18, flexShrink: 0 }}>›</span>
