@@ -1,4 +1,4 @@
-// 출석부 탭 — 주간 그리드 뷰 + 달력 뷰 (보강 체크 지원, 요일/성인반 분류 필터 포함)
+// 출석부 탭 — 주간 그리드 뷰 + 달력 뷰 (보강 체크 지원, 요일/성인반 분류 필터, 달력 상세는 2열 그리드)
 import { useState, useMemo, useEffect } from "react";
 import { C, TODAY, fmtDate, fmtFullDate, getWeekDates, KR_HOLIDAYS_2026 } from "../constants.js";
 import { SummaryCard, EmptyState } from "./ui.jsx";
@@ -357,30 +357,36 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
             : (
               <>
                 {selectedInfo.regularAttended.length > 0 && (
-                  <div>
-                    <div style={{ padding: "10px 16px 4px", fontSize: 13, fontWeight: 700, color: C.green }}>✅ 출석 완료</div>
-                    {selectedInfo.regularAttended.map((s, i) => (
-                      <DayRow key={s.id} student={s} dateStr={selectedDate} checked onToggle={toggleAttendance} onSelect={onSelectStudent} isLast={i===selectedInfo.regularAttended.length-1} />
-                    ))}
+                  <div style={{ padding: "10px 16px" }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.green, marginBottom: 8 }}>✅ 출석 완료</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                      {selectedInfo.regularAttended.map((s) => (
+                        <DayRow key={s.id} student={s} dateStr={selectedDate} checked onToggle={toggleAttendance} onSelect={onSelectStudent} />
+                      ))}
+                    </div>
                   </div>
                 )}
                 {selectedInfo.regularNotAttended.length > 0 && (
-                  <div>
-                    <div style={{ padding: "10px 16px 4px", fontSize: 13, fontWeight: 700, color: C.inkMuted }}>○ 미출석</div>
-                    {selectedInfo.regularNotAttended.map((s, i) => (
-                      <DayRow key={s.id} student={s} dateStr={selectedDate} checked={false} onToggle={toggleAttendance} onSelect={onSelectStudent} isLast={i===selectedInfo.regularNotAttended.length-1} />
-                    ))}
+                  <div style={{ padding: "10px 16px" }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.inkMuted, marginBottom: 8 }}>○ 미출석</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                      {selectedInfo.regularNotAttended.map((s) => (
+                        <DayRow key={s.id} student={s} dateStr={selectedDate} checked={false} onToggle={toggleAttendance} onSelect={onSelectStudent} />
+                      ))}
+                    </div>
                   </div>
                 )}
                 {(selectedInfo.adultAttended.length > 0 || selectedInfo.adultNotAttended.length > 0) && (
-                  <div>
-                    <div style={{ padding: "10px 16px 4px", fontSize: 13, fontWeight: 700, color: C.blue }}>🧑 성인반</div>
-                    {selectedInfo.adultAttended.map((s, i) => (
-                      <DayRow key={s.id} student={s} dateStr={selectedDate} checked onToggle={toggleAttendance} onSelect={onSelectStudent} isLast={i===selectedInfo.adultAttended.length-1 && selectedInfo.adultNotAttended.length===0} />
-                    ))}
-                    {selectedInfo.adultNotAttended.map((s, i) => (
-                      <DayRow key={s.id} student={s} dateStr={selectedDate} checked={false} onToggle={toggleAttendance} onSelect={onSelectStudent} isLast={i===selectedInfo.adultNotAttended.length-1} />
-                    ))}
+                  <div style={{ padding: "10px 16px 16px" }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.blue, marginBottom: 8 }}>🧑 성인반</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                      {selectedInfo.adultAttended.map((s) => (
+                        <DayRow key={s.id} student={s} dateStr={selectedDate} checked onToggle={toggleAttendance} onSelect={onSelectStudent} />
+                      ))}
+                      {selectedInfo.adultNotAttended.map((s) => (
+                        <DayRow key={s.id} student={s} dateStr={selectedDate} checked={false} onToggle={toggleAttendance} onSelect={onSelectStudent} />
+                      ))}
+                    </div>
                   </div>
                 )}
               </>
@@ -392,33 +398,33 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
   );
 }
 
-function DayRow({ student, dateStr, checked, onToggle, onSelect, isLast }) {
+function DayRow({ student, dateStr, checked, onToggle, onSelect }) {
   const cycle = checked ? getSessionCycle(student, dateStr) : null;
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 16px", borderBottom: isLast ? "none" : `1px solid ${C.border}`, background: checked ? "#f9fffc" : C.surface }}>
-      <div style={{ flex: 1, cursor: "pointer" }} onClick={() => onSelect(student)}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 34, height: 34, borderRadius: "50%", background: checked ? C.greenLight : C.accentLight, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: checked ? C.green : C.accent, flexShrink: 0 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 10px", borderRadius: 10, border: `1px solid ${C.border}`, background: checked ? "#f9fffc" : C.surface, minWidth: 0 }}>
+      <div style={{ flex: 1, cursor: "pointer", minWidth: 0 }} onClick={() => onSelect(student)}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ width: 30, height: 30, borderRadius: "50%", background: checked ? C.greenLight : C.accentLight, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13, color: checked ? C.green : C.accent, flexShrink: 0 }}>
             {student.name[0]}
           </div>
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 15 }}>{student.name}</div>
-            <div style={{ fontSize: 12, color: C.inkMuted }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontWeight: 600, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{student.name}</div>
+            <div style={{ fontSize: 11, color: C.inkMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {student.grade}
-              {student.type === "횟수제" && <span style={{ marginLeft: 6, color: C.green, fontWeight: 600 }}>{student.totalSessions}회</span>}
+              {student.type === "횟수제" && <span style={{ marginLeft: 4, color: C.green, fontWeight: 600 }}>{student.totalSessions}회</span>}
             </div>
           </div>
         </div>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, flexShrink: 0 }}>
         <button
           onClick={() => onToggle(student.id, dateStr)}
-          style={{ width: 44, height: 44, borderRadius: 10, border: checked ? "none" : `2px solid ${C.accent}`, background: checked ? C.greenLight : C.accentLight, color: checked ? C.green : C.accent, fontSize: checked ? 20 : 18, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+          style={{ width: 36, height: 36, borderRadius: 8, border: checked ? "none" : `2px solid ${C.accent}`, background: checked ? C.greenLight : C.accentLight, color: checked ? C.green : C.accent, fontSize: checked ? 16 : 15, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
         >
           {checked ? "✅" : "○"}
         </button>
-        {cycle !== null && <span style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted }}>{cycle}회</span>}
+        {cycle !== null && <span style={{ fontSize: 9, fontWeight: 700, color: C.inkMuted }}>{cycle}회</span>}
       </div>
     </div>
   );
