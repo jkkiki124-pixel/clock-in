@@ -45,22 +45,26 @@ export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, 
 
   return (
     <div>
-      <div style={{ display: "flex", background: C.surface, borderRadius: 10, padding: 4, marginBottom: 12, border: `1px solid ${C.border}`, gap: 4 }}>
-        {[{ id: "week", label: "📋 주간 출석부" }, { id: "calendar", label: "📅 달력 보기" }].map((v) => (
-          <button
-            key={v.id}
-            onClick={() => setViewMode(v.id)}
-            style={{
-              flex: 1, padding: "9px 8px", borderRadius: 7, border: "none",
-              background: viewMode === v.id ? C.accent : "transparent",
-              color: viewMode === v.id ? "#fff" : C.inkMuted,
-              fontWeight: viewMode === v.id ? 700 : 500, fontSize: 14, transition: "all 0.15s",
-            }}
-          >
-            {v.label}
-          </button>
-        ))}
+      <div style={{ position: "sticky", top: 100, zIndex: 30, background: C.bg, paddingBottom: 8 }}>
+        <div style={{ display: "flex", background: C.surface, borderRadius: 10, padding: 4, border: `1px solid ${C.border}`, gap: 4 }}>
+          {[{ id: "week", label: "📋 주간 출석부" }, { id: "calendar", label: "📅 달력 보기" }].map((v) => (
+            <button
+              key={v.id}
+              onClick={() => setViewMode(v.id)}
+              style={{
+                flex: 1, padding: "9px 8px", borderRadius: 7, border: "none",
+                background: viewMode === v.id ? C.accent : "transparent",
+                color: viewMode === v.id ? "#fff" : C.inkMuted,
+                fontWeight: viewMode === v.id ? 700 : 500, fontSize: 14, transition: "all 0.15s",
+              }}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {viewMode === "week"
 
       {viewMode === "week"
         ? <WeekView students={sortedStudents} weekDates={weekDates} weekOffset={weekOffset} setWeekOffset={setWeekOffset} toggleAttendance={toggleAttendance} onSelectStudent={onSelectStudent} />
@@ -79,7 +83,7 @@ function WeekView({ students, weekDates, weekOffset, setWeekOffset, toggleAttend
 
   return (
     <div>
-      <div style={{ position: "sticky", top: 100, zIndex: 20, background: C.bg, paddingBottom: 8 }}>
+      <div style={{ position: "sticky", top: 150, zIndex: 20, background: C.bg, paddingBottom: 8 }}>
         <NavBar
           label={weekLabel}
           subLabel={weekOffset === 0 ? "이번 주" : null}
