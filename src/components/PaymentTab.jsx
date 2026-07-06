@@ -154,7 +154,7 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
                                 <div style={{ fontSize: 18 }}>✅</div>
                                 <div style={{ fontSize: 12, color: C.green, fontWeight: 700, lineHeight: 1.5 }}>{dateShort}</div>
                                 {payment.method && <div style={{ fontSize: 12, color: C.inkMuted, fontWeight: 600, lineHeight: 1.5 }}>{payment.method}</div>}
-                                <div style={{ fontSize: 11, color: C.ink, fontWeight: 700, lineHeight: 1.5 }}>{(student.fee / 10000).toFixed(0)}만</div>
+                                <div style={{ fontSize: 11, color: C.ink, fontWeight: 700, lineHeight: 1.5 }}>{((payment.amount ?? student.fee) / 10000).toFixed(0)}만</div>
                               </div>
                             ) : (
                               <span style={{ color: C.border, fontSize: 17 }}>○</span>
@@ -176,7 +176,7 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
                   const key = monthKey(m);
                   const total = displayedStudents.reduce((sum, s) => {
                     const payment = s.payments.find((p) => p.month === key);
-                    return payment && payment.paid ? sum + s.fee : sum;
+                    return payment && payment.paid ? sum + (payment.amount ?? s.fee) : sum;
                   }, 0);
                   return (
                     <td key={m} style={{ padding: "8px 1px", textAlign: "center", fontSize: 12, fontWeight: 700, color: C.accent, ...(m === 12 ? { borderBottomRightRadius: 12 } : {}) }}>
@@ -206,12 +206,13 @@ function PaymentEditDialog({ student, month, onClose, setPayment }) {
   const existing = student.payments.find((p) => p.month === month);
   const [paidAt, setPaidAt] = useState(existing?.paidAt || fmtFullDate(TODAY));
   const [method, setMethod] = useState(existing?.method || "카드");
+  const [amount, setAmount] = useState(existing?.amount ?? student.fee);
 
   const [y, m] = month.split("-");
   const monthLabel = `${y}년 ${Number(m)}월`;
 
   function handleSave() {
-    setPayment(student.id, month, { paid: true, paidAt, method });
+    setPayment(student.id, month, { paid: true, paidAt, method, amount: Number(amount) });
     onClose();
   }
 
@@ -224,6 +225,16 @@ function PaymentEditDialog({ student, month, onClose, setPayment }) {
     <Dialog>
       <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>{student.name}</div>
       <div style={{ fontSize: 13, color: C.inkMuted, marginBottom: 20 }}>{monthLabel} 수강료 · {student.fee.toLocaleString()}원</div>
+
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: C.inkMuted, marginBottom: 6 }}>금액</div>
+        <input
+          type="number"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 14, outline: "none", background: C.bg, boxSizing: "border-box" }}
+        />
+      </div>
 
       <div style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: C.inkMuted, marginBottom: 6 }}>납부일</div>
