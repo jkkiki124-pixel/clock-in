@@ -155,6 +155,7 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
                                 <div style={{ fontSize: 12, color: C.green, fontWeight: 700, lineHeight: 1.5 }}>{dateShort}</div>
                                 {payment.method && <div style={{ fontSize: 12, color: C.inkMuted, fontWeight: 600, lineHeight: 1.5 }}>{payment.method}</div>}
                                 <div style={{ fontSize: 11, color: C.ink, fontWeight: 700, lineHeight: 1.5 }}>{((payment.amount ?? student.fee) / 10000).toFixed(0)}만</div>
+                                {payment.note && <div style={{ fontSize: 9, color: C.inkMuted, lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>📝{payment.note}</div>}
                               </div>
                             ) : (
                               <span style={{ color: C.border, fontSize: 17 }}>○</span>
@@ -207,12 +208,13 @@ function PaymentEditDialog({ student, month, onClose, setPayment }) {
   const [paidAt, setPaidAt] = useState(existing?.paidAt || `${month}-01`);
   const [method, setMethod] = useState(existing?.method || "카드");
   const [amount, setAmount] = useState(existing?.amount ?? student.fee);
+  const [note, setNote] = useState(existing?.note || "");
 
   const [y, m] = month.split("-");
   const monthLabel = `${y}년 ${Number(m)}월`;
 
   function handleSave() {
-    setPayment(student.id, month, { paid: true, paidAt, method, amount: Number(amount) });
+    setPayment(student.id, month, { paid: true, paidAt, method, amount: Number(amount), note });
     onClose();
   }
 
@@ -269,6 +271,16 @@ function PaymentEditDialog({ student, month, onClose, setPayment }) {
             );
           })}
         </div>
+      </div>
+
+      <div style={{ marginBottom: 22 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: C.inkMuted, marginBottom: 6 }}>메모 (예: 카드 5만+현금 5만)</div>
+        <input
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="나눠 낸 경우 등 상세 내역"
+          style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 14, outline: "none", background: C.bg, boxSizing: "border-box" }}
+        />
       </div>
 
       <div style={{ display: "flex", gap: 8 }}>
