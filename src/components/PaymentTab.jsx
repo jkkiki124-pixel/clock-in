@@ -25,14 +25,12 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
   const [modalInfo, setModalInfo] = useState(null); // { studentId, month }
   const [search, setSearch] = useState("");
   const [activeType, setActiveType] = useState("전체");
-  const [showWithdrawn, setShowWithdrawn] = useState(false);
 
   function monthKey(m) {
     return `${year}-${String(m).padStart(2, "0")}`;
   }
 
   const filtered = students
-    .filter((s) => (showWithdrawn ? s.status === "withdrawn" : s.status !== "withdrawn"))
     .filter((s) => s.name.includes(search) || s.grade.includes(search));
   const visibleTypes = activeType === "전체" ? CLASS_TYPES : [activeType];
   const groups = visibleTypes
@@ -89,18 +87,6 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
             <span style={{ fontSize: 13, color: C.inkMuted, fontWeight: 600 }}>총 {filtered.length}명</span>
-            <button
-              onClick={() => setShowWithdrawn((v) => !v)}
-              style={{
-                fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 14,
-                border: `1px solid ${showWithdrawn ? C.accent : C.border}`,
-                background: showWithdrawn ? C.accentLight : "transparent",
-                color: showWithdrawn ? C.accent : C.inkMuted,
-                whiteSpace: "nowrap",
-              }}
-            >
-              {showWithdrawn ? "← 재원생 보기" : "퇴원생 보기"}
-            </button>
           </div>
         </div>
       </div>
@@ -129,13 +115,15 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
                     </td>
                   </tr>
                   {g.list.map((student, idx) => (
-                    <tr key={student.id} style={{ borderBottom: idx === g.list.length - 1 ? "none" : `1px solid ${C.border}` }}>
+                    <tr key={student.id} style={{ borderBottom: idx === g.list.length - 1 ? "none" : `1px solid ${C.border}`, opacity: student.status === "withdrawn" ? 0.45 : 1 }}>
                       <td
                         onClick={() => onSelectStudent(student)}
                         style={{ padding: "10px 4px", cursor: "pointer", borderRight: `1px solid ${C.border}`, overflow: "hidden", textAlign: "center" }}
                       >
                         <div style={{ fontWeight: 800, fontSize: 16, color: C.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "center" }}>{student.name}</div>
-                        <div style={{ fontSize: 10, color: C.inkMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "center" }}>{student.grade}</div>
+                        <div style={{ fontSize: 10, color: C.inkMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "center" }}>
+                          {student.grade}{student.status === "withdrawn" && " · 퇴원"}
+                        </div>
                       </td>
                       {MONTHS.map((m) => {
                         const key = monthKey(m);
