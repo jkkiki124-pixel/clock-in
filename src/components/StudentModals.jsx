@@ -20,7 +20,6 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
   const monthPayment = student.payments.find((p) => p.month === currentMonth);
   const isPaid = monthPayment ? monthPayment.paid : false;
 
-  const recentAttendance = Object.keys(student.attendance).sort().slice(-10).reverse();
   const isExhausted = student.type === "횟수제" && student.usedSessions >= student.totalSessions;
   const remaining = student.type === "횟수제" ? student.totalSessions - student.usedSessions : null;
 
@@ -197,30 +196,6 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
                 {isPaid ? "✅ 납부 완료" : "납부 처리"}
               </button>
             </div>
-          </Section>
-
-          <Section title="최근 출석 기록">
-            {recentAttendance.length === 0 ? (
-              <div style={{ color: C.inkMuted, fontSize: 13 }}>출석 기록이 없습니다.</div>
-            ) : (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {recentAttendance.map((d) => (
-                  <span
-                    key={d}
-                    style={{
-                      background: C.greenLight,
-                      color: C.green,
-                      borderRadius: 6,
-                      padding: "4px 10px",
-                      fontSize: 12,
-                      fontWeight: 500,
-                    }}
-                  >
-                    ✅ {d}
-                  </span>
-                ))}
-              </div>
-            )}
           </Section>
         </>
       )}
