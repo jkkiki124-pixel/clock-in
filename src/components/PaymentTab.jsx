@@ -1,5 +1,5 @@
 // 수강료 탭 — 1년 전체 보기 (검색·반별 분류·퇴원생 필터 포함, 학생 × 1~12월 표)
-import { useState, Fragment } from "react";
+import { useState, useRef, useLayoutEffect, Fragment } from "react";
 import { C, TODAY } from "../constants.js";
 import { Dialog, EmptyState } from "./ui.jsx";
 
@@ -25,6 +25,18 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
   const [modalInfo, setModalInfo] = useState(null); // { studentId, month }
   const [search, setSearch] = useState("");
   const [activeType, setActiveType] = useState("전체");
+  const barRef = useRef(null);
+  const [theadTop, setTheadTop] = useState(280);
+
+  useLayoutEffect(() => {
+    const el = barRef.current;
+    if (!el) return;
+    const update = () => setTheadTop(100 + el.offsetHeight);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   function monthKey(m) {
     return `${year}-${String(m).padStart(2, "0")}`;
@@ -47,7 +59,7 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
 
   return (
     <div>
-      <div style={{ position: "sticky", top: 100, zIndex: 25, background: C.bg, paddingBottom: 8 }}>
+      <div ref={barRef} style={{ position: "sticky", top: 100, zIndex: 25, background: C.bg, paddingBottom: 8 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.surface, borderRadius: 12, padding: "12px 16px", border: `1px solid ${C.border}` }}>
           <button onClick={() => setYear((y) => y - 1)} style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 14px", color: C.inkMuted, fontSize: 18 }}>‹</button>
           <div style={{ fontWeight: 700, fontSize: 17 }}>{year}년 수강료 현황</div>
@@ -112,9 +124,9 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
           <table style={{ borderCollapse: "collapse", width: "100%", tableLayout: "fixed" }}>
             <thead>
               <tr style={{ background: C.bg, borderBottom: `2px solid ${C.border}` }}>
-                <th style={{ width: 60, padding: "10px 4px", fontSize: 12, color: C.inkMuted, textAlign: "center", borderRight: `1px solid ${C.border}`, position: "sticky", top: 280, zIndex: 15, background: C.bg, borderTopLeftRadius: 12 }}>학생</th>
+                <th style={{ width: 60, padding: "10px 4px", fontSize: 12, color: C.inkMuted, textAlign: "center", borderRight: `1px solid ${C.border}`, position: "sticky", top: theadTop, zIndex: 15, background: C.bg, borderTopLeftRadius: 12 }}>학생</th>
                 {MONTHS.map((m) => (
-                  <th key={m} style={{ padding: "10px 1px", fontSize: 11, color: C.inkMuted, textAlign: "center", position: "sticky", top: 280, zIndex: 15, background: C.bg, ...(m === 12 ? { borderTopRightRadius: 12 } : {}) }}>{m}월</th>
+                  <th key={m} style={{ padding: "10px 1px", fontSize: 11, color: C.inkMuted, textAlign: "center", position: "sticky", top: theadTop, zIndex: 15, background: C.bg, ...(m === 12 ? { borderTopRightRadius: 12 } : {}) }}>{m}월</th>
                 ))}
               </tr>
             </thead>
