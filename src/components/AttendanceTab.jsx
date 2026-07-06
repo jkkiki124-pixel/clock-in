@@ -165,15 +165,17 @@ function WeekRow({ student, weekDates, todayStr, onToggle, onSelect, isLast }) {
     <div style={{ display: "grid", gridTemplateColumns: "100px repeat(7, 1fr)", borderBottom: isLast ? "none" : `1px solid ${C.border}`, background: C.surface }}>
       <div onClick={() => onSelect(student)} style={{ padding: "8px", cursor: "pointer", display: "flex", flexDirection: "column", justifyContent: "center", gap: 3, borderRight: `1px solid ${C.border}` }}>
         <div style={{ fontWeight: 600, fontSize: 15 }}>{student.name}</div>
-        <div style={{ fontSize: 12, color: C.inkMuted }}>{student.grade}</div>
-        {student.type === "횟수제" && (
-          <div style={{ fontSize: 12, fontWeight: 700, color: C.green, background: C.greenLight, borderRadius: 4, padding: "1px 4px", display: "inline-block" }}>
-            {student.totalSessions}회
-          </div>
-        )}
-        {student.type === "월정액" && (
-          <div style={{ fontSize: 11, color: C.blue, background: C.blueLight, borderRadius: 4, padding: "1px 4px", display: "inline-block" }}>월정액</div>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <span style={{ fontSize: 12, color: C.inkMuted }}>{student.grade}</span>
+          {student.type === "횟수제" && (
+            <span style={{ fontSize: 12, fontWeight: 700, color: C.green, background: C.greenLight, borderRadius: 4, padding: "1px 4px" }}>
+              {student.totalSessions}회
+            </span>
+          )}
+          {student.type === "월정액" && (
+            <span style={{ fontSize: 11, color: C.blue, background: C.blueLight, borderRadius: 4, padding: "1px 4px" }}>월정액</span>
+          )}
+        </div>
       </div>
 
       {weekDates.map((d, i) => {
