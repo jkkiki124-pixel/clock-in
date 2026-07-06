@@ -59,9 +59,17 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="이름 또는 학년 검색"
-            style={{ width: "100%", padding: "12px 16px 12px 40px", borderRadius: 10, border: `1px solid ${C.border}`, fontSize: 14, background: C.surface, outline: "none", boxSizing: "border-box" }}
+            style={{ width: "100%", padding: "12px 40px 12px 40px", borderRadius: 10, border: `1px solid ${C.border}`, fontSize: 14, background: C.surface, outline: "none", boxSizing: "border-box" }}
           />
           <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: C.inkMuted }}>🔍</span>
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: C.border, color: "#fff", border: "none", borderRadius: "50%", width: 20, height: 20, fontSize: 12, lineHeight: 1, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+            >
+              ✕
+            </button>
+          )}
         </div>
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
