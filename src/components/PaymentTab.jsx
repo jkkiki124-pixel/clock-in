@@ -242,7 +242,8 @@ function PaymentEditDialog({ student, month, onClose, setPayment }) {
           type="date"
           value={paidAt}
           onChange={(e) => setPaidAt(e.target.value)}
-          style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 14, outline: "none", background: C.bg }}
+          onClick={(e) => e.target.showPicker?.()}
+          style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 14, outline: "none", background: C.bg, cursor: "pointer" }}
         />
       </div>
 
