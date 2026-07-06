@@ -163,7 +163,7 @@ function WeekRow({ student, weekDates, todayStr, onToggle, onSelect, isLast }) {
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "100px repeat(7, 1fr)", borderBottom: isLast ? "none" : `1px solid ${C.border}`, background: C.surface }}>
-      <div onClick={() => onSelect(student)} style={{ padding: "8px", cursor: "pointer", display: "flex", flexDirection: "column", justifyContent: "center", gap: 3, borderRight: `1px solid ${C.border}` }}>
+      <div onClick={() => onSelect(student)} style={{ padding: "8px 8px 8px 14px", cursor: "pointer", display: "flex", flexDirection: "column", justifyContent: "center", gap: 3, borderRight: `1px solid ${C.border}` }}>
         <div style={{ fontWeight: 600, fontSize: 15 }}>{student.name}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <span style={{ fontSize: 12, color: C.inkMuted }}>{student.grade}</span>
