@@ -92,23 +92,15 @@ export function StudentsTab({ students, onSelectStudent }) {
 }
 
 function StudentRow({ student, onSelect }) {
+  const info = `${student.grade} · ${student.days.join(",")} · ${student.type}${student.type === "횟수제" ? ` (${student.usedSessions}/${student.totalSessions}회)` : ""}`;
   return (
     <div
       onClick={() => onSelect(student)}
-      style={{ display: "flex", alignItems: "center", padding: "12px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.surface, cursor: "pointer", gap: 10, minWidth: 0 }}
+      style={{ display: "flex", alignItems: "center", padding: "14px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.surface, cursor: "pointer", gap: 8, minWidth: 0 }}
     >
-      <div style={{ width: 38, height: 38, borderRadius: "50%", background: C.accentLight, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 15, color: C.accent, flexShrink: 0 }}>
-        {student.name[0]}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontWeight: 600, fontSize: 15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{student.name}</span>
-          <span style={{ fontSize: 12, color: C.inkMuted, flexShrink: 0 }}>{student.grade}</span>
-        </div>
-        <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-          {student.days.join(", ")} · {student.type}
-          {student.type === "횟수제" && ` (${student.usedSessions}/${student.totalSessions}회)`}
-        </div>
+      <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap", rowGap: 2 }}>
+        <span style={{ fontWeight: 800, fontSize: 20, color: C.ink }}>{student.name}</span>
+        <span style={{ fontSize: 13, color: C.inkMuted }}>{info}</span>
       </div>
       <span style={{ color: C.border, fontSize: 18, flexShrink: 0 }}>›</span>
     </div>
