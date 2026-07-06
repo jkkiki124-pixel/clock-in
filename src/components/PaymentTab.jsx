@@ -58,7 +58,7 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
           💡 칸을 클릭하면 납부일과 납부 방법을 입력·수정할 수 있습니다
         </div>
 
-        <div style={{ position: "relative", marginBottom: 10 }}>
+        <div style={{ position: "relative", marginBottom: 10, width: "50%" }}>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
