@@ -1,6 +1,6 @@
 // 수강료 탭 — 1년 전체 보기 (검색·반별 분류·퇴원생 필터 포함, 학생 × 1~12월 표)
 import { useState, Fragment } from "react";
-import { C, TODAY, fmtFullDate } from "../constants.js";
+import { C, TODAY } from "../constants.js";
 import { Dialog, EmptyState } from "./ui.jsx";
 
 const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
@@ -204,7 +204,7 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
 
 function PaymentEditDialog({ student, month, onClose, setPayment }) {
   const existing = student.payments.find((p) => p.month === month);
-  const [paidAt, setPaidAt] = useState(existing?.paidAt || fmtFullDate(TODAY));
+  const [paidAt, setPaidAt] = useState(existing?.paidAt || `${month}-01`);
   const [method, setMethod] = useState(existing?.method || "카드");
   const [amount, setAmount] = useState(existing?.amount ?? student.fee);
 
