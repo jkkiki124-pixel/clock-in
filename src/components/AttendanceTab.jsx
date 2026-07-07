@@ -232,7 +232,13 @@ function ListView({ students, weekDates, weekOffset, setWeekOffset }) {
           {weekDates.map((d, i) => {
             const dateStr = fmtFullDate(d);
             const isToday = dateStr === todayStr;
-            const dayAttendees = students.filter((s) => s.attendance[dateStr]);
+            const dayAttendees = students
+              .filter((s) => s.attendance[dateStr])
+              .sort((a, b) => {
+                const typeDiff = (a.type === "횟수제" ? 0 : 1) - (b.type === "횟수제" ? 0 : 1);
+                if (typeDiff !== 0) return typeDiff;
+                return a.name.localeCompare(b.name, "ko");
+              });
 
             return (
               <div key={i} style={{ background: C.surface, borderRadius: 10, border: `1px solid ${C.border}`, padding: "8px 6px", minHeight: 220 }}>
