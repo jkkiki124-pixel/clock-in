@@ -370,14 +370,9 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
                   </div>
                 )}
                 {info.scheduled.length > 0 && (
-                  <>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
-                      {info.scheduled.map((s) => <div key={s.id} style={{ width: 7, height: 7, borderRadius: "50%", background: s.attendance[info.dateStr] ? C.green : C.border }} />)}
-                    </div>
-                    <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 3 }}>
-                      <span style={{ color: C.green, fontWeight: 700 }}>{info.attended.length}</span>/{info.scheduled.length}
-                    </div>
-                  </>
+                  <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 3 }}>
+                    <span style={{ color: C.green, fontWeight: 700 }}>{info.attended.length}</span>/{info.scheduled.length}
+                  </div>
                 )}
               </div>
             );
@@ -385,12 +380,7 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 12, marginBottom: 12, padding: "0 4px" }}>
-        {[{ dot: C.green, label: "출석" }, { dot: C.border, label: "미출석" }].map((l) => (
-          <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, color: C.inkMuted }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: l.dot }} /> {l.label}
-          </div>
-        ))}
+      <div style={{ marginBottom: 12, padding: "0 4px" }}>
         <div style={{ fontSize: 13, color: C.inkMuted }}>날짜를 탭하면 상세 확인</div>
       </div>
 
