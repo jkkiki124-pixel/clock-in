@@ -89,7 +89,7 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-          <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
+          <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2, minWidth: 0 }}>
             {["전체", ...CLASS_TYPES].map((ct) => {
               const active = activeType === ct;
               return (
@@ -121,6 +121,7 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
         </div>
       ) : (
         <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, marginTop: 12 }}>
+          <div style={{ overflowX: "auto" }}>
           <table style={{ borderCollapse: "collapse", tableLayout: "fixed" }}>
             <thead>
               <tr style={{ background: C.bg, borderBottom: `2px solid ${C.border}` }}>
@@ -200,6 +201,7 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
               </tr>
             </tfoot>
           </table>
+          </div>
         </div>
       )}
 
