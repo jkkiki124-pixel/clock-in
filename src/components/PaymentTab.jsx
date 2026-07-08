@@ -59,7 +59,7 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
 
   return (
     <div>
-      <div ref={barRef} style={{ position: "sticky", top: 100, zIndex: 25, background: C.bg, paddingBottom: 8 }}>
+      <div ref={barRef} style={{ position: "sticky", top: 100, left: 0, zIndex: 25, background: C.bg, paddingBottom: 8 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.surface, borderRadius: 12, padding: "12px 16px", border: `1px solid ${C.border}` }}>
           <button onClick={() => setYear((y) => y - 1)} style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 14px", color: C.inkMuted, fontSize: 18 }}>‹</button>
           <div style={{ fontWeight: 700, fontSize: 17 }}>{year}년 수강료 현황</div>
