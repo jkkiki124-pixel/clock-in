@@ -25,7 +25,7 @@ export function Header({ tab, setTab, onAddStudent, onLogout, onChangePw }) {
     <header style={{
       background: C.surface,
       borderBottom: `2px solid ${C.accent}`,
-      position: "sticky", top: 0, zIndex: 100,
+      position: "sticky", top: 0, left: 0, zIndex: 100,
       boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
     }}>
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 12px" }}>
