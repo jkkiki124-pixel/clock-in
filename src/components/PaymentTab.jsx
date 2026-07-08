@@ -121,7 +121,6 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
         </div>
       ) : (
         <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.border}`, marginTop: 12 }}>
-          <div style={{ overflowX: "auto" }}>
           <table style={{ borderCollapse: "collapse", tableLayout: "fixed" }}>
             <thead>
               <tr style={{ background: C.bg, borderBottom: `2px solid ${C.border}` }}>
@@ -201,7 +200,6 @@ export function PaymentTab({ students, setPayment, onSelectStudent }) {
               </tr>
             </tfoot>
           </table>
-          </div>
         </div>
       )}
 
