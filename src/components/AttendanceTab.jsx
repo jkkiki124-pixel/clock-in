@@ -183,7 +183,7 @@ function WeekRow({ student, weekDates, todayStr, onToggle, onSelect, isLast }) {
         const isChecked = status === true;
         const isMakeup = status === "makeup";
         const isToday = dateStr === todayStr;
-        const cycle = (isChecked || isMakeup) ? getSessionCycle(student, dateStr) : null;
+        const cycle = (isChecked || isMakeup) ? student.sessionNumbers?.[dateStr] : null;
 
         return (
           <div
@@ -252,7 +252,7 @@ function ListView({ students, weekDates, weekOffset, setWeekOffset }) {
                   ) : (
                     dayAttendees.map((s) => {
                       const isMakeup = s.attendance[dateStr] === "makeup";
-                      const cycle = getSessionCycle(s, dateStr);
+                      const cycle = s.sessionNumbers?.[dateStr];
                       const label = s.type === "횟수제" && cycle !== null ? `${s.name}${cycle}` : s.name;
 
                       return (
@@ -463,7 +463,7 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
 }
 
 function DayRow({ student, dateStr, checked, onToggle, onSelect }) {
-  const cycle = checked ? getSessionCycle(student, dateStr) : null;
+  const cycle = checked ? student.sessionNumbers?.[dateStr] : null;
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 10px", borderRadius: 10, border: `1px solid ${C.border}`, background: checked ? "#f9fffc" : C.surface, minWidth: 0 }}>
