@@ -68,15 +68,18 @@ export function useStudents() {
       const student = fromDbStudent(row);
 
       const attendance = {};
-      (attendanceRows || [])
-        .filter((a) => a.student_id === student.id)
-        .forEach((a) => { attendance[a.date] = a.is_makeup ? "makeup" : true; });
-
+const sessionNumbers = {};
+(attendanceRows || [])
+  .filter((a) => a.student_id === student.id)
+  .forEach((a) => {
+    attendance[a.date] = a.is_makeup ? "makeup" : true;
+    sessionNumbers[a.date] = a.session_number ?? null;
+  });
       const payments = (paymentRows || [])
         .filter((p) => p.student_id === student.id)
         .map((p) => ({ month: p.month, paid: p.paid, paidAt: p.paid_at, method: p.method, amount: p.amount, note: p.note }));
 
-      return { ...student, attendance, payments };
+     return { ...student, attendance, sessionNumbers, payments };
     });
 
     setStudents(merged);
@@ -98,10 +101,15 @@ export function useStudents() {
       const isAttending = !!student.attendance[dateStr];
 
       if (isAttending) {
-        await supabase.from("attendance").delete().eq("student_id", studentId).eq("date", dateStr);
-      } else {
-        await supabase.from("attendance").insert({ student_id: studentId, date: dateStr, is_makeup: isMakeup });
-      }
+  await supabase.from("attendance").delete().eq("student_id", studentId).eq("date", dateStr);
+} else {
+  let sessionNumber = null;
+  if (student.type === "횟수제") {
+    const attendedCount = Object.values(student.attendance).filter(Boolean).length;
+    sessionNumber = (attendedCount % student.totalSessions) + 1;
+  }
+  await supabase.from("attendance").insert({ student_id: studentId, date: dateStr, is_makeup: isMakeup, session_number: sessionNumber });
+}
 
       if (student.type === "횟수제") {
         const nextUsed = Math.max(0, (student.usedSessions || 0) + (isAttending ? -1 : 1));
