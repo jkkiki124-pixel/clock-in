@@ -3,17 +3,6 @@ import { useState, useMemo, useEffect } from "react";
 import { C, TODAY, fmtDate, fmtFullDate, getWeekDates, KR_HOLIDAYS_2026 } from "../constants.js";
 import { SummaryCard, EmptyState } from "./ui.jsx";
 
-// 횟수제 학생의 특정 출석일이 전체 회차 중 몇 회차인지 계산 (다 채우면 1회부터 순환)
-function getSessionCycle(student, dateStr) {
-  if (student.type !== "횟수제") return null;
-  const attendedDates = Object.keys(student.attendance)
-    .filter((d) => student.attendance[d]) // true 또는 "makeup"
-    .sort();
-  const rank = attendedDates.indexOf(dateStr) + 1;
-  if (rank === 0) return null;
-  return ((rank - 1) % student.totalSessions) + 1;
-}
-
 // 학년 문자열을 정렬 가능한 숫자로 변환 (나이순 → 초등 → 중고등 → 기타)
 function gradeSortKey(grade) {
   const se = grade.match(/^(\d+)세$/);
@@ -183,7 +172,7 @@ function WeekRow({ student, weekDates, todayStr, onToggle, onSelect, isLast }) {
         const isChecked = status === true;
         const isMakeup = status === "makeup";
         const isToday = dateStr === todayStr;
-        const cycle = (isChecked || isMakeup) ? student.sessionNumbers?.[dateStr] : null;
+        const cycle = (student.type === "횟수제" && (isChecked || isMakeup)) ? student.sessionNumbers?.[dateStr] : null;
 
         return (
           <div
@@ -200,7 +189,7 @@ function WeekRow({ student, weekDates, todayStr, onToggle, onSelect, isLast }) {
               : isMakeup ? <span style={{ fontSize: 13, fontWeight: 700, color: C.yellow }}>보강</span>
               : isScheduled ? <span style={{ fontSize: 22, color: C.border }}>○</span>
               : <span style={{ color: "#ddd", fontSize: 14 }}>—</span>}
-            {cycle !== null && <span style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, marginTop: 2 }}>{cycle}회</span>}
+            {cycle !== null && cycle !== undefined && <span style={{ fontSize: 10, fontWeight: 700, color: C.inkMuted, marginTop: 2 }}>{cycle}회</span>}
           </div>
         );
       })}
@@ -253,7 +242,7 @@ function ListView({ students, weekDates, weekOffset, setWeekOffset }) {
                     dayAttendees.map((s) => {
                       const isMakeup = s.attendance[dateStr] === "makeup";
                       const cycle = s.sessionNumbers?.[dateStr];
-                      const label = s.type === "횟수제" && cycle !== null ? `${s.name}${cycle}` : s.name;
+                      const label = s.type === "횟수제" && cycle !== null && cycle !== undefined ? `${s.name}${cycle}` : s.name;
 
                       return (
                         <div
@@ -463,7 +452,7 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
 }
 
 function DayRow({ student, dateStr, checked, onToggle, onSelect }) {
-  const cycle = checked ? student.sessionNumbers?.[dateStr] : null;
+  const cycle = (student.type === "횟수제" && checked) ? student.sessionNumbers?.[dateStr] : null;
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 10px", borderRadius: 10, border: `1px solid ${C.border}`, background: checked ? "#f9fffc" : C.surface, minWidth: 0 }}>
@@ -488,7 +477,7 @@ function DayRow({ student, dateStr, checked, onToggle, onSelect }) {
         >
           {checked ? "✅" : "○"}
         </button>
-        {cycle !== null && <span style={{ fontSize: 9, fontWeight: 700, color: C.inkMuted }}>{cycle}회</span>}
+        {cycle !== null && cycle !== undefined && <span style={{ fontSize: 9, fontWeight: 700, color: C.inkMuted }}>{cycle}회</span>}
       </div>
     </div>
   );
