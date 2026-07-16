@@ -1,4 +1,5 @@
 // 학생 데이터 훅 — Supabase 연동 버전 (CRUD + 출석/납부 관리, 보강/반 구분/납부방법 지원)
+// ★ 회차(session) 계산은 "session_config_history" 이력 기반 구간 계산 방식 사용
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabase.js";
 import { fmtFullDate } from "../constants.js";
@@ -42,6 +43,44 @@ function toDbStudent(data) {
   };
 }
 
+// 학생의 회차 설정 이력(effective_from 오름차순)을 기준으로,
+// 출석 기록을 "구간"별로 나누고, 각 구간 안에서만 날짜순으로 회차 번호를 계산한다.
+// history: [{ effectiveFrom: "YYYY-MM-DD", totalSessions: N }, ...] (이미 오름차순 정렬된 상태로 전달됨)
+// attendanceDates: 그 학생의 출석된 날짜 문자열 배열 (makeup 포함, 정렬 전)
+function computeSessionNumbers(history, attendanceDates) {
+  const result = {}; // { dateStr: sessionNumber }
+  if (!history || history.length === 0) return result;
+
+  const sortedDates = [...attendanceDates].sort();
+
+  // 각 출석일이 속하는 구간(index)을 찾는 헬퍼
+  function findSegmentIndex(dateStr) {
+    let idx = 0;
+    for (let i = 0; i < history.length; i++) {
+      if (history[i].effectiveFrom <= dateStr) idx = i;
+      else break;
+    }
+    return idx;
+  }
+
+  // 구간별로 날짜를 묶는다
+  const segmentBuckets = history.map(() => []);
+  sortedDates.forEach((dateStr) => {
+    const segIdx = findSegmentIndex(dateStr);
+    segmentBuckets[segIdx].push(dateStr);
+  });
+
+  // 구간별로 순번 계산
+  segmentBuckets.forEach((dates, segIdx) => {
+    const total = history[segIdx].totalSessions;
+    dates.forEach((dateStr, i) => {
+      result[dateStr] = (i % total) + 1;
+    });
+  });
+
+  return result;
+}
+
 export function useStudents() {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,23 +102,34 @@ export function useStudents() {
 
     const { data: attendanceRows } = await supabase.from("attendance").select("*");
     const { data: paymentRows } = await supabase.from("payments").select("*");
+    const { data: historyRows } = await supabase
+      .from("session_config_history")
+      .select("*")
+      .order("effective_from", { ascending: true });
 
     const merged = (studentRows || []).map((row) => {
       const student = fromDbStudent(row);
 
       const attendance = {};
-const sessionNumbers = {};
-(attendanceRows || [])
-  .filter((a) => a.student_id === student.id)
-  .forEach((a) => {
-    attendance[a.date] = a.is_makeup ? "makeup" : true;
-    sessionNumbers[a.date] = a.session_number ?? null;
-  });
+      const attendanceDates = [];
+      (attendanceRows || [])
+        .filter((a) => a.student_id === student.id)
+        .forEach((a) => {
+          attendance[a.date] = a.is_makeup ? "makeup" : true;
+          attendanceDates.push(a.date);
+        });
+
+      const history = (historyRows || [])
+        .filter((h) => h.student_id === student.id)
+        .map((h) => ({ effectiveFrom: h.effective_from, totalSessions: h.total_sessions }));
+
+      const sessionNumbers = student.type === "횟수제" ? computeSessionNumbers(history, attendanceDates) : {};
+
       const payments = (paymentRows || [])
         .filter((p) => p.student_id === student.id)
         .map((p) => ({ month: p.month, paid: p.paid, paidAt: p.paid_at, method: p.method, amount: p.amount, note: p.note }));
 
-     return { ...student, attendance, sessionNumbers, payments };
+      return { ...student, attendance, sessionNumbers, sessionHistory: history, payments };
     });
 
     setStudents(merged);
@@ -89,6 +139,8 @@ const sessionNumbers = {};
   useEffect(() => { loadStudents(); }, [loadStudents]);
 
   // 출석 토글 — isMakeup이 true면 보강으로 기록, 횟수제는 usedSessions 자동 증감
+  // 회차 번호는 저장하지 않고(더 이상 attendance.session_number를 쓰지 않음),
+  // loadStudents() 시점에 이력 기반으로 항상 재계산되므로 순서와 무관하게 항상 정확함
   async function toggleAttendance(studentId, dateStr, isMakeup = false) {
     const key = `${studentId}`; // 학생 단위로 잠가서 다른 날짜 칸도 순차 처리되게 함
     if (pendingToggles.current.has(key)) return; // 처리 중이면 중복 클릭 무시
@@ -101,15 +153,10 @@ const sessionNumbers = {};
       const isAttending = !!student.attendance[dateStr];
 
       if (isAttending) {
-  await supabase.from("attendance").delete().eq("student_id", studentId).eq("date", dateStr);
-} else {
-  let sessionNumber = null;
-  if (student.type === "횟수제") {
-    const attendedCount = Object.values(student.attendance).filter(Boolean).length;
-    sessionNumber = (attendedCount % student.totalSessions) + 1;
-  }
-  await supabase.from("attendance").insert({ student_id: studentId, date: dateStr, is_makeup: isMakeup, session_number: sessionNumber });
-}
+        await supabase.from("attendance").delete().eq("student_id", studentId).eq("date", dateStr);
+      } else {
+        await supabase.from("attendance").insert({ student_id: studentId, date: dateStr, is_makeup: isMakeup });
+      }
 
       if (student.type === "횟수제") {
         const nextUsed = Math.max(0, (student.usedSessions || 0) + (isAttending ? -1 : 1));
@@ -143,26 +190,34 @@ const sessionNumbers = {};
 
   // 수강료 납부 정보를 날짜/방법까지 직접 지정해서 저장 (1년 전체 보기 화면에서 사용)
   async function setPayment(studentId, month, { paid, paidAt, method, amount, note }) {
-  const student = students.find((s) => s.id === studentId);
-  if (!student) return;
-  const existing = student.payments.find((p) => p.month === month);
-  if (!paid) {
-    await supabase.from("payments").delete().eq("student_id", studentId).eq("month", month);
-  } else if (existing) {
-    await supabase.from("payments").update({ paid: true, paid_at: paidAt, method, amount, note }).eq("student_id", studentId).eq("month", month);
-  } else {
-    await supabase.from("payments").insert({ student_id: studentId, month, paid: true, paid_at: paidAt, method, amount, note });
+    const student = students.find((s) => s.id === studentId);
+    if (!student) return;
+    const existing = student.payments.find((p) => p.month === month);
+    if (!paid) {
+      await supabase.from("payments").delete().eq("student_id", studentId).eq("month", month);
+    } else if (existing) {
+      await supabase.from("payments").update({ paid: true, paid_at: paidAt, method, amount, note }).eq("student_id", studentId).eq("month", month);
+    } else {
+      await supabase.from("payments").insert({ student_id: studentId, month, paid: true, paid_at: paidAt, method, amount, note });
+    }
+    // 횟수제 학생이 결제 확인되면 회차 카운트 자동 리셋
+    if (paid && student.type === "횟수제") {
+      await supabase.from("students").update({ used_sessions: 0 }).eq("id", studentId);
+    }
+    await loadStudents();
   }
-  // 횟수제 학생이 결제 확인되면 회차 카운트 자동 리셋
-  if (paid && student.type === "횟수제") {
-    await supabase.from("students").update({ used_sessions: 0 }).eq("id", studentId);
-  }
-  await loadStudents();
-}
 
   // 학생 추가
   async function addStudent(data) {
-    await supabase.from("students").insert(toDbStudent(data));
+    const { data: inserted, error } = await supabase.from("students").insert(toDbStudent(data)).select().single();
+    if (!error && inserted && data.type === "횟수제") {
+      // 신규 학생은 등록일부터 지정한 횟수로 회차 이력 1건 자동 생성
+      await supabase.from("session_config_history").insert({
+        student_id: inserted.id,
+        effective_from: data.registeredAt,
+        total_sessions: data.totalSessions,
+      });
+    }
     await loadStudents();
   }
 
@@ -172,17 +227,31 @@ const sessionNumbers = {};
     await loadStudents();
   }
 
- // 학생 삭제
-async function deleteStudent(studentId) {
-  await supabase.from("students").delete().eq("id", studentId);
-  await loadStudents();
-}
+  // 회차(횟수) 변경 이력 추가 — 특정 날짜부터 새 총 횟수를 적용
+  async function addSessionConfigChange(studentId, newTotalSessions, effectiveFrom) {
+    await supabase.from("session_config_history").insert({
+      student_id: studentId,
+      effective_from: effectiveFrom,
+      total_sessions: newTotalSessions,
+    });
+    await loadStudents();
+  }
 
- // 퇴원/재원 처리
-async function setStudentStatus(studentId, status) {
-  await supabase.from("students").update({ status }).eq("id", studentId);
-  await loadStudents();
-}
+  // 학생 삭제
+  async function deleteStudent(studentId) {
+    await supabase.from("students").delete().eq("id", studentId);
+    await loadStudents();
+  }
 
-return { students, loading, toggleAttendance, togglePayment, setPayment, addStudent, updateStudent, deleteStudent, setStudentStatus };
+  // 퇴원/재원 처리
+  async function setStudentStatus(studentId, status) {
+    await supabase.from("students").update({ status }).eq("id", studentId);
+    await loadStudents();
+  }
+
+  return {
+    students, loading, toggleAttendance, togglePayment, setPayment,
+    addStudent, updateStudent, deleteStudent, setStudentStatus,
+    addSessionConfigChange,
+  };
 }
