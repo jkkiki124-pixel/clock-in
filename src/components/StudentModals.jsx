@@ -11,10 +11,11 @@ const BLANK_FORM = {
 };
 
 // ─── 학생 상세 모달 ────────────────────────────────────────
-export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayment, setStudentStatus }) {
+export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayment, setStudentStatus, onSessionChange }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(student);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [sessionChangeStep, setSessionChangeStep] = useState(null); // { newTotalSessions, effectiveFrom }
 
   const currentMonth = `${TODAY.getFullYear()}-${String(TODAY.getMonth() + 1).padStart(2, "0")}`;
   const monthPayment = student.payments.find((p) => p.month === currentMonth);
@@ -24,7 +25,22 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
   const remaining = student.type === "횟수제" ? student.totalSessions - student.usedSessions : null;
 
   function handleSave() {
+    const sessionsChanged = form.type === "횟수제" && Number(form.totalSessions) !== Number(student.totalSessions);
+
+    if (sessionsChanged) {
+      // 바로 저장하지 않고, 적용 시작일을 먼저 확인
+      setSessionChangeStep({ newTotalSessions: Number(form.totalSessions), effectiveFrom: fmtFullDate(TODAY) });
+      return;
+    }
+
     onUpdate(form);
+    setEditing(false);
+  }
+
+  function confirmSessionChange() {
+    onUpdate(form);
+    onSessionChange(student.id, sessionChangeStep.newTotalSessions, sessionChangeStep.effectiveFrom);
+    setSessionChangeStep(null);
     setEditing(false);
   }
 
@@ -77,6 +93,7 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
             onClick={() => {
               setEditing(!editing);
               setForm(student);
+              setSessionChangeStep(null);
             }}
             style={{
               background: "none",
@@ -92,7 +109,41 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
         </div>
       </div>
 
-      {editing ? (
+      {sessionChangeStep ? (
+        <div style={{ background: C.accentLight, borderRadius: 10, padding: "16px", marginBottom: 12 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6, color: C.accent }}>
+            횟수 변경 확인
+          </div>
+          <div style={{ fontSize: 13, color: C.ink, marginBottom: 14, lineHeight: 1.5 }}>
+            <b>{student.totalSessions}회</b> → <b>{sessionChangeStep.newTotalSessions}회</b>로 변경합니다.<br />
+            아래 날짜부터 새 횟수가 적용되며, 그 이전 출석 기록의 회차는 그대로 유지됩니다.
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.inkMuted, marginBottom: 6 }}>적용 시작일</div>
+            <input
+              type="date"
+              value={sessionChangeStep.effectiveFrom}
+              onChange={(e) => setSessionChangeStep((s) => ({ ...s, effectiveFrom: e.target.value }))}
+              onClick={(ev) => ev.target.showPicker?.()}
+              style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 14, outline: "none", background: C.surface, cursor: "pointer", boxSizing: "border-box" }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => setSessionChangeStep(null)}
+              style={{ flex: 1, padding: "11px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.surface, fontWeight: 600, fontSize: 14 }}
+            >
+              취소
+            </button>
+            <button
+              onClick={confirmSessionChange}
+              style={{ flex: 1, padding: "11px", borderRadius: 8, border: "none", background: C.accent, color: "#fff", fontWeight: 700, fontSize: 14 }}
+            >
+              이 날짜부터 적용
+            </button>
+          </div>
+        </div>
+      ) : editing ? (
         <>
           <StudentForm form={form} setForm={setForm} onSubmit={handleSave} submitLabel="저장" />
           <div style={{ marginTop: 12 }}>
