@@ -209,10 +209,7 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
                 { label: "수강 유형", value: student.type },
                 { label: "수강료", value: `${student.fee.toLocaleString()}원` },
                 { label: "수업 요일", value: student.days.join(", ") },
-                student.type === "횟수제"
-                  ? { label: "잔여 횟수", value: `${remaining}/${student.totalSessions}회`, highlight: remaining === 0 }
-                  : null,
-              ].filter(Boolean)}
+              ]}
             />
           </Section>
 
