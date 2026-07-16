@@ -17,12 +17,14 @@ function gradeSortKey(grade) {
 }
 
 // 주간 출석부 요일 분류 탭
-const DAY_FILTERS = ["전체", "월~목요일", "금요일", "토요일", "일요일", "성인반"];
-const DAY_FILTER_MAP = { "월~목요일": ["월", "화", "수", "목"], "금요일": ["금"], "토요일": ["토"], "일요일": ["일"] };
+const DAY_FILTERS = ["전체", "월~목요일", "토요일", "일요일", "유치부1", "유치부2", "성인반"];
+const DAY_FILTER_MAP = { "월~목요일": ["월", "화", "수", "목"], "토요일": ["토"], "일요일": ["일"] };
 
 function matchesDayFilter(student, filterId) {
   if (filterId === "전체") return true;
   if (filterId === "성인반") return student.classType === "성인반";
+  if (filterId === "유치부1") return student.classType === "유치부1";
+  if (filterId === "유치부2") return student.classType === "유치부2";
   if (student.classType === "성인반") return false;
   return student.days.some((d) => DAY_FILTER_MAP[filterId].includes(d));
 }
