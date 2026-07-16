@@ -105,7 +105,8 @@ export function DayPicker({ selected, onChange }) {
   );
 }
 
-const CLASS_TYPES = ["유치부", "초등부", "중고등부", "성인반"];
+// ★ 유치부를 1반/2반으로 분리
+const CLASS_TYPES = ["유치부1", "유치부2", "초등부", "중고등부", "성인반"];
 
 export function ClassTypePicker({ selected, onChange }) {
   return (
