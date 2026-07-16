@@ -5,7 +5,8 @@ import { Dialog, EmptyState } from "./ui.jsx";
 
 const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 const METHODS = ["카드", "상품권", "입금", "제로페이", "기타"];
-const CLASS_TYPES = ["유치부", "초등부", "중고등부", "성인반"];
+// ★ 유치부를 1반/2반으로 분리
+const CLASS_TYPES = ["유치부1", "유치부2", "초등부", "중고등부", "성인반"];
 
 // 학년 문자열을 정렬 가능한 숫자로 변환 (나이순 → 초등 → 중고등 → 기타)
 function gradeSortKey(grade) {
