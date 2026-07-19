@@ -294,7 +294,10 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
   function getDateInfo(day) {
     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     const krDay = ["월","화","수","목","금","토","일"][(new Date(year, month, day).getDay() + 6) % 7];
-    return { dateStr, krDay, scheduled: students.filter((s) => s.days.includes(krDay)), attended: students.filter((s) => s.attendance[dateStr]) };
+    const scheduled = students.filter((s) => s.days.includes(krDay));
+    const attended = students.filter((s) => s.attendance[dateStr]);
+    const makeupCount = students.filter((s) => s.attendance[dateStr] === "makeup").length;
+    return { dateStr, krDay, scheduled, attended, makeupCount };
   }
 
   const selectedInfo = useMemo(() => {
@@ -304,14 +307,17 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
     const scheduled = students.filter((s) => s.days.includes(krDay));
     const regular = scheduled.filter((s) => s.classType !== "성인반");
     const adults = scheduled.filter((s) => s.classType === "성인반");
+    // 보강 출석은 예정된(scheduled) 명단과 무관하게 그 날 실제로 "makeup" 상태인 모든 학생을 잡음
+    const makeupAttendees = students.filter((s) => s.attendance[selectedDate] === "makeup");
     return {
       krDay,
       scheduled,
       attended: scheduled.filter((s) => s.attendance[selectedDate]),
-      regularAttended: regular.filter((s) => s.attendance[selectedDate]),
+      regularAttended: regular.filter((s) => s.attendance[selectedDate] === true),
       regularNotAttended: regular.filter((s) => !s.attendance[selectedDate]),
-      adultAttended: adults.filter((s) => s.attendance[selectedDate]),
+      adultAttended: adults.filter((s) => s.attendance[selectedDate] === true),
       adultNotAttended: adults.filter((s) => !s.attendance[selectedDate]),
+      makeupAttendees,
     };
   }, [selectedDate, students]);
 
@@ -365,6 +371,11 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
                     <span style={{ color: C.green, fontWeight: 700 }}>{info.attended.length}</span>/{info.scheduled.length}
                   </div>
                 )}
+                {info.makeupCount > 0 && (
+                  <div style={{ fontSize: 10, color: C.yellow, fontWeight: 700, marginTop: 1 }}>
+                    보강 {info.makeupCount}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -407,7 +418,7 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
             </button>
           </div>
 
-          {selectedInfo.scheduled.length === 0
+          {selectedInfo.scheduled.length === 0 && selectedInfo.makeupAttendees.length === 0
             ? <EmptyState text="이 날은 수업 예정 학생이 없습니다." />
             : (
               <>
@@ -432,7 +443,7 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
                   </div>
                 )}
                 {(selectedInfo.adultAttended.length > 0 || selectedInfo.adultNotAttended.length > 0) && (
-                  <div style={{ padding: "10px 16px 16px" }}>
+                  <div style={{ padding: "10px 16px" }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: C.blue, marginBottom: 8 }}>🧑 성인반</div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                       {selectedInfo.adultAttended.map((s) => (
@@ -440,6 +451,16 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
                       ))}
                       {selectedInfo.adultNotAttended.map((s) => (
                         <DayRow key={s.id} student={s} dateStr={selectedDate} checked={false} onToggle={toggleAttendance} onSelect={onSelectStudent} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {selectedInfo.makeupAttendees.length > 0 && (
+                  <div style={{ padding: "10px 16px 16px" }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.yellow, marginBottom: 8 }}>🔁 보강 ({selectedInfo.makeupAttendees.length}명)</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                      {selectedInfo.makeupAttendees.map((s) => (
+                        <DayRow key={s.id} student={s} dateStr={selectedDate} checked isMakeup onToggle={toggleAttendance} onSelect={onSelectStudent} />
                       ))}
                     </div>
                   </div>
@@ -453,18 +474,22 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
   );
 }
 
-function DayRow({ student, dateStr, checked, onToggle, onSelect }) {
+function DayRow({ student, dateStr, checked, isMakeup, onToggle, onSelect }) {
   const cycle = (student.type === "횟수제" && checked) ? student.sessionNumbers?.[dateStr] : null;
+  const accentColor = isMakeup ? C.yellow : C.green;
+  const accentBg = isMakeup ? C.yellowLight : C.greenLight;
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 10px", borderRadius: 10, border: `1px solid ${C.border}`, background: checked ? "#f9fffc" : C.surface, minWidth: 0 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 10px", borderRadius: 10, border: `1px solid ${C.border}`, background: checked ? (isMakeup ? "#fffdf7" : "#f9fffc") : C.surface, minWidth: 0 }}>
       <div style={{ flex: 1, cursor: "pointer", minWidth: 0 }} onClick={() => onSelect(student)}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <div style={{ width: 30, height: 30, borderRadius: "50%", background: checked ? C.greenLight : C.accentLight, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13, color: checked ? C.green : C.accent, flexShrink: 0 }}>
+          <div style={{ width: 30, height: 30, borderRadius: "50%", background: checked ? accentBg : C.accentLight, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13, color: checked ? accentColor : C.accent, flexShrink: 0 }}>
             {student.name[0]}
           </div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 600, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{student.name}</div>
+            <div style={{ fontWeight: 600, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {student.name}{isMakeup && <span style={{ marginLeft: 4, fontSize: 11, fontWeight: 700, color: C.yellow }}>(보강)</span>}
+            </div>
             <div style={{ fontSize: 11, color: C.inkMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {student.grade}
               {student.type === "횟수제" && <span style={{ marginLeft: 4, color: C.green, fontWeight: 600 }}>{student.totalSessions}회</span>}
@@ -475,7 +500,7 @@ function DayRow({ student, dateStr, checked, onToggle, onSelect }) {
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, flexShrink: 0 }}>
         <button
           onClick={() => onToggle(student.id, dateStr)}
-          style={{ width: 36, height: 36, borderRadius: 8, border: checked ? "none" : `2px solid ${C.accent}`, background: checked ? C.greenLight : C.accentLight, color: checked ? C.green : C.accent, fontSize: checked ? 16 : 15, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+          style={{ width: 36, height: 36, borderRadius: 8, border: checked ? "none" : `2px solid ${C.accent}`, background: checked ? accentBg : C.accentLight, color: checked ? accentColor : C.accent, fontSize: checked ? 16 : 15, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
         >
           {checked ? "✅" : "○"}
         </button>
