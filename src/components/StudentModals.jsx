@@ -23,6 +23,8 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
 
   const isExhausted = student.type === "횟수제" && student.usedSessions >= student.totalSessions;
   const remaining = student.type === "횟수제" ? student.totalSessions - student.usedSessions : null;
+  const sessionDates = Object.keys(student.sessionNumbers || {}).sort();
+  const currentSessionNumber = sessionDates.length > 0 ? student.sessionNumbers[sessionDates[sessionDates.length - 1]] : null;
 
   function handleSave() {
     const sessionsChanged = form.type === "횟수제" && Number(form.totalSessions) !== Number(student.totalSessions);
@@ -209,7 +211,10 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
                 { label: "수강 유형", value: student.type },
                 { label: "수강료", value: `${student.fee.toLocaleString()}원` },
                 { label: "수업 요일", value: student.days.join(", ") },
-              ]}
+                student.type === "횟수제" && currentSessionNumber !== null
+                  ? { label: "진행회차", value: `${currentSessionNumber}회` }
+                  : null,
+              ].filter(Boolean)}
             />
           </Section>
 
