@@ -135,11 +135,11 @@ function StudentBarChart({ student, year }) {
           const barHeight = count > 0 ? Math.max(4, (count / max) * BAR_MAX_HEIGHT) : 2;
           return (
             <div key={m} style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: count > 0 ? C.accent : "transparent", marginBottom: 2, height: 12 }}>{count > 0 ? count : ""}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: count > 0 ? "#14b8a6" : "transparent", marginBottom: 3, height: 16 }}>{count > 0 ? count : ""}</div>
               <div style={{ width: "100%", maxWidth: 18, height: BAR_MAX_HEIGHT, display: "flex", alignItems: "flex-end" }}>
-                <div style={{ width: "100%", height: barHeight, borderRadius: "3px 3px 0 0", background: count > 0 ? C.accent : C.border }} />
+                <div style={{ width: "100%", height: barHeight, borderRadius: "3px 3px 0 0", background: count > 0 ? "#14b8a6" : C.border }} />
               </div>
-              <div style={{ fontSize: 9, color: C.inkMuted, marginTop: 3 }}>{m}월</div>
+              <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 4, fontWeight: 600 }}>{m}월</div>
             </div>
           );
         })}
