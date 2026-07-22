@@ -38,7 +38,7 @@ export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, 
     <div>
       <div style={{ position: "sticky", top: 100, zIndex: 30, background: C.bg, paddingBottom: 8 }}>
         <div style={{ display: "flex", background: C.surface, borderRadius: 10, padding: 4, border: `1px solid ${C.border}`, gap: 4 }}>
-          {[{ id: "week", label: "📋 주간 출석부" }, { id: "calendar", label: "📅 달력 보기" }, { id: "list", label: "🗒️ 명단 보기" }].map((v) => (
+          {[{ id: "week", label: "📋 주간 출석부" }, { id: "calendar", label: "📅 달력 보기" }].map((v) => (
             <button
               key={v.id}
               onClick={() => setViewMode(v.id)}
@@ -58,7 +58,6 @@ export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, 
       <div style={{ marginTop: 12 }}>
         {viewMode === "week" && <WeekView students={sortedStudents} weekDates={weekDates} weekOffset={weekOffset} setWeekOffset={setWeekOffset} toggleAttendance={toggleAttendance} onSelectStudent={onSelectStudent} />}
         {viewMode === "calendar" && <CalendarView students={sortedStudents} calMonth={calMonth} setCalMonth={setCalMonth} toggleAttendance={toggleAttendance} onSelectStudent={onSelectStudent} notes={notes} setNote={setNote} />}
-        {viewMode === "list" && <ListView students={sortedStudents} weekDates={weekDates} weekOffset={weekOffset} setWeekOffset={setWeekOffset} />}
       </div>
     </div>
   );
@@ -195,77 +194,6 @@ function WeekRow({ student, weekDates, todayStr, onToggle, onSelect, isLast }) {
           </div>
         );
       })}
-    </div>
-  );
-}
-
-// 명단 보기 — 한 주 단위로 요일 칸을 세로로 늘려 그날 출석한 학생을 이름+회차로 바로 나열
-function ListView({ students, weekDates, weekOffset, setWeekOffset }) {
-  const DAY_NAMES = ["월", "화", "수", "목", "금", "토", "일"];
-  const todayStr = fmtFullDate(TODAY);
-  const weekLabel = `${weekDates[0].getMonth() + 1}/${weekDates[0].getDate()} ~ ${weekDates[6].getMonth() + 1}/${weekDates[6].getDate()}`;
-
-  return (
-    <div>
-      <div style={{ position: "sticky", top: 150, zIndex: 20, background: C.bg, paddingBottom: 8 }}>
-        <NavBar
-          label={weekLabel}
-          subLabel={weekOffset === 0 ? "이번 주" : null}
-          onPrev={() => setWeekOffset((w) => w - 1)}
-          onNext={() => setWeekOffset((w) => w + 1)}
-          onReset={weekOffset !== 0 ? () => setWeekOffset(0) : null}
-          resetLabel="이번 주로"
-        />
-      </div>
-
-      <div style={{ overflowX: "auto", marginTop: 12 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(110px, 1fr))", gap: 8, minWidth: 770 }}>
-          {weekDates.map((d, i) => {
-            const dateStr = fmtFullDate(d);
-            const isToday = dateStr === todayStr;
-            const dayAttendees = students
-              .filter((s) => s.attendance[dateStr])
-              .sort((a, b) => {
-                const typeDiff = (a.type === "횟수제" ? 0 : 1) - (b.type === "횟수제" ? 0 : 1);
-                if (typeDiff !== 0) return typeDiff;
-                return a.name.localeCompare(b.name, "ko");
-              });
-
-            return (
-              <div key={i} style={{ background: C.surface, borderRadius: 10, border: `1px solid ${C.border}`, padding: "8px 6px", minHeight: 220 }}>
-                <div style={{ textAlign: "center", marginBottom: 8, paddingBottom: 6, borderBottom: `1px solid ${C.border}` }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: isToday ? C.accent : C.inkMuted }}>{DAY_NAMES[i]}</div>
-                  <div style={{ fontSize: 13, fontWeight: isToday ? 700 : 600, color: isToday ? C.accent : C.ink }}>{fmtDate(d)}</div>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  {dayAttendees.length === 0 ? (
-                    <div style={{ fontSize: 11, color: C.border, textAlign: "center", marginTop: 8 }}>—</div>
-                  ) : (
-                    dayAttendees.map((s) => {
-                      const isMakeup = s.attendance[dateStr] === "makeup";
-                      const cycle = s.sessionNumbers?.[dateStr];
-                      const label = s.type === "횟수제" && cycle !== null && cycle !== undefined ? `${s.name}${cycle}` : s.name;
-
-                      return (
-                        <div
-                          key={s.id}
-                          style={{
-                            fontSize: 12, fontWeight: 600, textAlign: "center", borderRadius: 6, padding: "4px 6px",
-                            color: isMakeup ? C.yellow : C.green,
-                            background: isMakeup ? C.yellowLight : C.greenLight,
-                          }}
-                        >
-                          {label}{isMakeup && " (보강)"}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 }
