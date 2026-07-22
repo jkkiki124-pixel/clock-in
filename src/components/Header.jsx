@@ -19,6 +19,7 @@ export function Header({ tab, setTab, onAddStudent, onLogout, onChangePw }) {
     { id: "payment",    label: "수강료",  icon: "💰" },
     { id: "students",   label: "학생목록", icon: "👥" },
     { id: "staff",      label: "출근부",  icon: "👩‍🏫" },
+    { id: "stats",      label: "출석통계", icon: "📊" },
   ];
 
   return (
