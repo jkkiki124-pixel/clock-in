@@ -11,6 +11,7 @@ import { AttendanceTab } from "./components/AttendanceTab.jsx";
 import { PaymentTab }    from "./components/PaymentTab.jsx";
 import { StudentsTab }   from "./components/StudentsTab.jsx";
 import { StaffTab }      from "./components/StaffTab.jsx";
+import { StatsTab }      from "./components/StatsTab.jsx";
 import { StudentModal, AddStudentModal } from "./components/StudentModals.jsx";
 
 export default function App() {
@@ -104,6 +105,9 @@ export default function App() {
               updateStaff={updateStaff}
               deleteStaff={deleteStaff}
             />
+          )}
+          {tab === "stats" && (
+            <StatsTab students={students} />
           )}
         </main>
 
