@@ -10,12 +10,19 @@ const BLANK_FORM = {
   days: [], memo: "", classType: "초등부", status: "active",
 };
 
+function sameDays(a, b) {
+  const sa = [...(a || [])].sort().join(",");
+  const sb = [...(b || [])].sort().join(",");
+  return sa === sb;
+}
+
 // ─── 학생 상세 모달 ────────────────────────────────────────
-export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayment, setStudentStatus, onSessionChange }) {
+export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayment, setStudentStatus, onSessionChange, onDayChange }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(student);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [sessionChangeStep, setSessionChangeStep] = useState(null); // { newTotalSessions, effectiveFrom }
+  const [dayChangeStep, setDayChangeStep] = useState(null); // { newDays, newClassType, effectiveFrom }
   const [rejoinStep, setRejoinStep] = useState(null); // { activeFrom }
   const [withdrawStep, setWithdrawStep] = useState(null); // { withdrawnAt }
 
@@ -30,10 +37,16 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
 
   function handleSave() {
     const sessionsChanged = form.type === "횟수제" && Number(form.totalSessions) !== Number(student.totalSessions);
+    const daysChanged = !sameDays(form.days, student.days) || form.classType !== student.classType;
 
     if (sessionsChanged) {
-      // 바로 저장하지 않고, 적용 시작일을 먼저 확인
-      setSessionChangeStep({ newTotalSessions: Number(form.totalSessions), effectiveFrom: fmtFullDate(TODAY) });
+      // 바로 저장하지 않고, 적용 시작일을 먼저 확인 (요일도 바뀌었으면 이어서 확인)
+      setSessionChangeStep({ newTotalSessions: Number(form.totalSessions), effectiveFrom: fmtFullDate(TODAY), thenDaysChanged: daysChanged });
+      return;
+    }
+
+    if (daysChanged) {
+      setDayChangeStep({ newDays: form.days, newClassType: form.classType, effectiveFrom: fmtFullDate(TODAY) });
       return;
     }
 
@@ -44,7 +57,18 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
   function confirmSessionChange() {
     onUpdate(form);
     onSessionChange(student.id, sessionChangeStep.newTotalSessions, sessionChangeStep.effectiveFrom);
+    const needsDayStep = sessionChangeStep.thenDaysChanged;
     setSessionChangeStep(null);
+    if (needsDayStep) {
+      setDayChangeStep({ newDays: form.days, newClassType: form.classType, effectiveFrom: fmtFullDate(TODAY) });
+    } else {
+      setEditing(false);
+    }
+  }
+
+  function confirmDayChange() {
+    onDayChange(student.id, dayChangeStep.newDays, dayChangeStep.effectiveFrom, dayChangeStep.newClassType);
+    setDayChangeStep(null);
     setEditing(false);
   }
 
@@ -104,6 +128,7 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
               setEditing(!editing);
               setForm(student);
               setSessionChangeStep(null);
+              setDayChangeStep(null);
               setRejoinStep(null);
               setWithdrawStep(null);
             }}
@@ -120,7 +145,8 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
           </button>
         </div>
       </div>
-{withdrawStep ? (
+
+      {withdrawStep ? (
         <div style={{ background: C.accentLight, borderRadius: 10, padding: "16px", marginBottom: 12 }}>
           <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6, color: C.accent }}>
             퇴원 처리
@@ -155,7 +181,6 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
           </div>
         </div>
       ) : rejoinStep ? (
-    
         <div style={{ background: C.greenLight, borderRadius: 10, padding: "16px", marginBottom: 12 }}>
           <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6, color: C.green }}>
             재원 처리
@@ -218,6 +243,40 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
             <button
               onClick={confirmSessionChange}
               style={{ flex: 1, padding: "11px", borderRadius: 8, border: "none", background: C.accent, color: "#fff", fontWeight: 700, fontSize: 14 }}
+            >
+              이 날짜부터 적용
+            </button>
+          </div>
+        </div>
+      ) : dayChangeStep ? (
+        <div style={{ background: C.blueLight, borderRadius: 10, padding: "16px", marginBottom: 12 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6, color: C.blue }}>
+            수업 요일 변경 확인
+          </div>
+          <div style={{ fontSize: 13, color: C.ink, marginBottom: 14, lineHeight: 1.5 }}>
+            <b>{student.days.join(", ") || "-"}</b> → <b>{dayChangeStep.newDays.join(", ") || "-"}</b>로 변경합니다.<br />
+            아래 날짜부터 새 요일이 적용되며, 그 이전 출석부 기록은 그대로 유지됩니다.
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.inkMuted, marginBottom: 6 }}>적용 시작일</div>
+            <input
+              type="date"
+              value={dayChangeStep.effectiveFrom}
+              onChange={(e) => setDayChangeStep((s) => ({ ...s, effectiveFrom: e.target.value }))}
+              onClick={(ev) => ev.target.showPicker?.()}
+              style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 14, outline: "none", background: C.surface, cursor: "pointer", boxSizing: "border-box" }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => { setDayChangeStep(null); setEditing(false); }}
+              style={{ flex: 1, padding: "11px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.surface, fontWeight: 600, fontSize: 14 }}
+            >
+              취소
+            </button>
+            <button
+              onClick={confirmDayChange}
+              style={{ flex: 1, padding: "11px", borderRadius: 8, border: "none", background: C.blue, color: "#fff", fontWeight: 700, fontSize: 14 }}
             >
               이 날짜부터 적용
             </button>
