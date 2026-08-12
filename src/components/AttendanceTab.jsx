@@ -25,12 +25,16 @@ function matchesDayFilter(student, filterId) {
   if (filterId === "성인반") return student.classType === "성인반";
   if (filterId === "유치부1") return student.classType === "유치부1";
   if (filterId === "유치부2") return student.classType === "유치부2";
-  if (student.classType === "성인반") return false;
-  return student.days.some((d) => DAY_FILTER_MAP[filterId].includes(d));
+  if (student.classType === "성인반")  false;
+   student.days.some((d) => DAY_FILTER_MAP[filterId].includes(d));
 }
 
 // 재원 시작일(activeFrom) 이전 날짜에는 출석부에 표시하지 않음
 function isActiveOnDate(student, dateStr) {
+  if (student.status === "withdrawn") {
+    // 퇴원한 경우, 퇴원일까지의 기록만 표시. 퇴원일이 없으면(구버전 데이터) 표시 안 함
+    return !!student.withdrawnAt && dateStr <= student.withdrawnAt;
+  }
   return !student.activeFrom || dateStr >= student.activeFrom;
 }
 
