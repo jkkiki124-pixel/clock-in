@@ -1,5 +1,5 @@
 // 앱 루트 — 인증·라우팅·전역 상태만 담당
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { globalStyle, TODAY, getWeekDates } from "./constants.js";
 import { useAuth }     from "./hooks/useAuth.js";
 import { useStudents } from "./hooks/useStudents.js";
@@ -32,6 +32,15 @@ export default function App() {
   const [weekOffset,      setWeekOffset]      = useState(0);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [addOpen,         setAddOpen]         = useState(false);
+  const [showTop, setShowTop] = useState(false);
+
+useEffect(() => {
+  function onScroll() {
+    setShowTop(window.scrollY > 300);
+  }
+  window.addEventListener("scroll", onScroll);
+  return () => window.removeEventListener("scroll", onScroll);
+}, []);
 
   const baseDate  = useMemo(() => { const d = new Date(TODAY); d.setDate(d.getDate() + weekOffset * 7); return d; }, [weekOffset]);
   const weekDates = useMemo(() => getWeekDates(baseDate), [baseDate]);
@@ -134,7 +143,7 @@ deleteNote={deleteNote}
           />
         )}
 
-        {/* 비밀번호 변경 모달 */}
+{/* 비밀번호 변경 모달 */}
         {changePwOpen && (
           <ChangePwModal
             isFirst={isFirstRun}
@@ -142,6 +151,26 @@ deleteNote={deleteNote}
             onChangePw={changePw}
           />
         )}
+
+        {/* 맨 위로 버튼 */}
+        {showTop && (
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            style={{
+              position: "fixed", right: 16, bottom: 24, zIndex: 50,
+              width: 48, height: 48, borderRadius: "50%",
+              background: "#C1440E", color: "#fff", border: "none",
+              fontSize: 20, boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
+              cursor: "pointer",
+            }}
+          >
+            ↑
+          </button>
+        )}
+      </div>
+    </>
+  );
+}    
       </div>
     </>
   );
