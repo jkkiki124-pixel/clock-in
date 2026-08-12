@@ -18,7 +18,7 @@ export function StaffTab({ staff, setAttendance, addStaff, updateStaff, deleteSt
   const weekDates = getWeekDates(baseDate);
   const todayStr = fmtFullDate(TODAY);
   const weekLabel = `${weekDates[0].getMonth() + 1}/${weekDates[0].getDate()} ~ ${weekDates[6].getMonth() + 1}/${weekDates[6].getDate()}`;
-  const DAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
+  const DAY_NAMES = ["월", "화", "수", "목", "금", "토", "일"];
 
   const currentMonthPrefix = fmtFullDate(TODAY).slice(0, 7); // "YYYY-MM"
   const totalChecks = staff.reduce((sum, s) =>
@@ -73,7 +73,7 @@ export function StaffTab({ staff, setAttendance, addStaff, updateStaff, deleteSt
               const isToday = fmtFullDate(d) === todayStr;
               return (
                 <div key={i} style={{ padding: "8px 2px", textAlign: "center", background: isToday ? C.accentLight : "transparent", borderLeft: `1px solid ${C.border}` }}>
-                  <div style={{ fontSize: 10, color: isToday ? C.accent : i === 0 ? "#E04040" : C.inkMuted, fontWeight: 700 }}>{DAY_NAMES[i]}</div>
+                  <div style={{ fontSize: 10, color: isToday ? C.accent : i === 6 ? "#E04040" : i === 5 ? C.blue : C.inkMuted, fontWeight: 700 }}>{DAY_NAMES[i]}</div>
                   <div style={{ fontSize: 12, fontWeight: isToday ? 700 : 600, color: isToday ? C.accent : C.ink }}>{fmtDate(d)}</div>
                 </div>
               );
