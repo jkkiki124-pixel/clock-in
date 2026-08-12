@@ -1,5 +1,6 @@
 // 학생 데이터 훅 — Supabase 연동 버전 (CRUD + 출석/납부 관리, 보강/반 구분/납부방법 지원)
 // ★ 회차(session) 계산은 "session_config_history" 이력 기반 구간 계산 방식 사용
+// ★ 요일(days) 계산도 "day_config_history" 이력 기반 구간 계산 방식 사용
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabase.js";
 import { fmtFullDate } from "../constants.js";
@@ -83,6 +84,18 @@ function computeSessionNumbers(history, attendanceDates) {
   return result;
 }
 
+// 요일 변경 이력을 기준으로, 특정 날짜에 적용되던 수업 요일을 계산
+// history: [{ effectiveFrom, days }, ...] (오름차순 정렬됨)
+function computeDaysAt(history, dateStr, fallbackDays) {
+  if (!history || history.length === 0) return fallbackDays;
+  let applicable = null;
+  for (let i = 0; i < history.length; i++) {
+    if (history[i].effectiveFrom <= dateStr) applicable = history[i];
+    else break;
+  }
+  return applicable ? applicable.days : [];
+}
+
 export function useStudents() {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -108,6 +121,10 @@ export function useStudents() {
       .from("session_config_history")
       .select("*")
       .order("effective_from", { ascending: true });
+    const { data: dayHistoryRows } = await supabase
+      .from("day_config_history")
+      .select("*")
+      .order("effective_from", { ascending: true });
 
     const merged = (studentRows || []).map((row) => {
       const student = fromDbStudent(row);
@@ -125,13 +142,17 @@ export function useStudents() {
         .filter((h) => h.student_id === student.id)
         .map((h) => ({ effectiveFrom: h.effective_from, totalSessions: h.total_sessions }));
 
+      const dayHistory = (dayHistoryRows || [])
+        .filter((h) => h.student_id === student.id)
+        .map((h) => ({ effectiveFrom: h.effective_from, days: h.days || [], classType: h.class_type }));
+
       const sessionNumbers = student.type === "횟수제" ? computeSessionNumbers(history, attendanceDates) : {};
 
       const payments = (paymentRows || [])
         .filter((p) => p.student_id === student.id)
         .map((p) => ({ month: p.month, paid: p.paid, paidAt: p.paid_at, method: p.method, amount: p.amount, note: p.note }));
 
-      return { ...student, attendance, sessionNumbers, sessionHistory: history, payments };
+      return { ...student, attendance, sessionNumbers, sessionHistory: history, dayHistory, payments };
     });
 
     setStudents(merged);
@@ -139,6 +160,11 @@ export function useStudents() {
   }, []);
 
   useEffect(() => { loadStudents(); }, [loadStudents]);
+
+  // 특정 학생의 특정 날짜 기준 수업 요일을 계산 (요일 변경 이력 반영)
+  function getDaysAt(student, dateStr) {
+    return computeDaysAt(student.dayHistory, dateStr, student.days);
+  }
 
   // 출석 토글 — isMakeup이 true면 보강으로 기록, 횟수제는 usedSessions 자동 증감
   // 회차 번호는 저장하지 않고(더 이상 attendance.session_number를 쓰지 않음),
@@ -212,12 +238,21 @@ export function useStudents() {
   // 학생 추가
   async function addStudent(data) {
     const { data: inserted, error } = await supabase.from("students").insert(toDbStudent(data)).select().single();
-    if (!error && inserted && data.type === "횟수제") {
-      // 신규 학생은 등록일부터 지정한 횟수로 회차 이력 1건 자동 생성
-      await supabase.from("session_config_history").insert({
+    if (!error && inserted) {
+      if (data.type === "횟수제") {
+        // 신규 학생은 등록일부터 지정한 횟수로 회차 이력 1건 자동 생성
+        await supabase.from("session_config_history").insert({
+          student_id: inserted.id,
+          effective_from: data.registeredAt,
+          total_sessions: data.totalSessions,
+        });
+      }
+      // 신규 학생은 등록일부터 지정한 요일로 요일 이력 1건 자동 생성
+      await supabase.from("day_config_history").insert({
         student_id: inserted.id,
         effective_from: data.registeredAt,
-        total_sessions: data.totalSessions,
+        days: data.days,
+        class_type: data.classType,
       });
     }
     await loadStudents();
@@ -235,6 +270,17 @@ export function useStudents() {
       student_id: studentId,
       effective_from: effectiveFrom,
       total_sessions: newTotalSessions,
+    });
+    await loadStudents();
+  }
+
+  // 요일 변경 이력 추가 — 특정 날짜부터 새 요일(및 반 구분)을 적용
+  async function addDayConfigChange(studentId, newDays, effectiveFrom, classType) {
+    await supabase.from("day_config_history").insert({
+      student_id: studentId,
+      effective_from: effectiveFrom,
+      days: newDays,
+      class_type: classType,
     });
     await loadStudents();
   }
@@ -260,6 +306,6 @@ export function useStudents() {
   return {
     students, loading, toggleAttendance, togglePayment, setPayment,
     addStudent, updateStudent, deleteStudent, setStudentStatus,
-    addSessionConfigChange,
+    addSessionConfigChange, addDayConfigChange, getDaysAt,
   };
 }
