@@ -29,6 +29,11 @@ function matchesDayFilter(student, filterId) {
   return student.days.some((d) => DAY_FILTER_MAP[filterId].includes(d));
 }
 
+// 재원 시작일(activeFrom) 이전 날짜에는 출석부에 표시하지 않음
+function isActiveOnDate(student, dateStr) {
+  return !student.activeFrom || dateStr >= student.activeFrom;
+}
+
 export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, toggleAttendance, onSelectStudent, notes, addNote, updateNote, deleteNote }) {
   const [viewMode, setViewMode] = useState("week");
   const [calMonth, setCalMonth] = useState({ year: TODAY.getFullYear(), month: TODAY.getMonth() });
@@ -80,7 +85,9 @@ function WeekView({ students, weekDates, weekOffset, setWeekOffset, toggleAttend
   const weekLabel = `${weekDates[0].getMonth() + 1}/${weekDates[0].getDate()} ~ ${weekDates[6].getMonth() + 1}/${weekDates[6].getDate()}`;
   const DAY_NAMES = ["월", "화", "수", "목", "금", "토", "일"];
   const [dayFilter, setDayFilter] = useState("전체");
-  const filteredStudents = students.filter((s) => matchesDayFilter(s, dayFilter));
+  const filteredStudents = students
+    .filter((s) => matchesDayFilter(s, dayFilter))
+    .filter((s) => weekDates.some((d) => isActiveOnDate(s, fmtFullDate(d))));
 
   return (
     <div>
@@ -180,6 +187,11 @@ function WeekRow({ student, weekDates, todayStr, onToggle, onSelect, isLast }) {
       {weekDates.map((d, i) => {
         const dateStr = fmtFullDate(d);
         const dayName = DAY_NAMES[i];
+
+        if (!isActiveOnDate(student, dateStr)) {
+          return <div key={i} style={{ borderLeft: `1px solid ${C.border}`, minHeight: 56 }} />;
+        }
+
         const isScheduled = student.days.includes(dayName);
         const status = student.attendance[dateStr]; // true | "makeup" | undefined
         const isChecked = status === true;
@@ -229,9 +241,10 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
   function getDateInfo(day) {
     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     const krDay = ["월","화","수","목","금","토","일"][(new Date(year, month, day).getDay() + 6) % 7];
-    const scheduled = students.filter((s) => s.days.includes(krDay));
-    const attended = students.filter((s) => s.attendance[dateStr]);
-    const makeupCount = students.filter((s) => s.attendance[dateStr] === "makeup").length;
+    const activeStudents = students.filter((s) => isActiveOnDate(s, dateStr));
+    const scheduled = activeStudents.filter((s) => s.days.includes(krDay));
+    const attended = activeStudents.filter((s) => s.attendance[dateStr]);
+    const makeupCount = activeStudents.filter((s) => s.attendance[dateStr] === "makeup").length;
     return { dateStr, krDay, scheduled, attended, makeupCount };
   }
 
@@ -239,10 +252,12 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
     if (!selectedDate) return null;
     const [y, m2, d] = selectedDate.split("-").map(Number);
     const krDay = ["월","화","수","목","금","토","일"][(new Date(y, m2 - 1, d).getDay() + 6) % 7];
-    const scheduled = students.filter((s) => s.days.includes(krDay));
+    const activeStudents = students.filter((s) => isActiveOnDate(s, selectedDate));
+    const scheduled = activeStudents.filter((s) => s.days.includes(krDay));
     const regular = scheduled.filter((s) => s.classType !== "성인반");
     const adults = scheduled.filter((s) => s.classType === "성인반");
-    const makeupAttendees = students.filter((s) => s.attendance[selectedDate] === "makeup");
+    // 보강 출석은 예정된(scheduled) 명단과 무관하게 그 날 실제로 "makeup" 상태인 모든 학생을 잡음 (재원 시작일 이전 제외)
+    const makeupAttendees = activeStudents.filter((s) => s.attendance[selectedDate] === "makeup");
     return {
       krDay,
       scheduled,
