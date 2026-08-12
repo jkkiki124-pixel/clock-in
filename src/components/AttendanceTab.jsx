@@ -1,4 +1,5 @@
 // 출석부 탭 — 주간 그리드 뷰 + 달력 뷰 (보강 체크 지원, 요일/성인반 분류 필터, 달력 상세는 2열 그리드)
+// ★ 요일 판정은 day_config_history 이력 기반(getDaysAt)으로 계산 — 과거 요일 변경/퇴원 이후에도 그 시점 기준 정확히 표시
 import { useState, useMemo } from "react";
 import { C, TODAY, fmtDate, fmtFullDate, getWeekDates, KR_HOLIDAYS_2026 } from "../constants.js";
 import { SummaryCard, EmptyState } from "./ui.jsx";
@@ -25,11 +26,11 @@ function matchesDayFilter(student, filterId) {
   if (filterId === "성인반") return student.classType === "성인반";
   if (filterId === "유치부1") return student.classType === "유치부1";
   if (filterId === "유치부2") return student.classType === "유치부2";
-  if (student.classType === "성인반")  false;
-   student.days.some((d) => DAY_FILTER_MAP[filterId].includes(d));
+  if (student.classType === "성인반") return false;
+  return student.days.some((d) => DAY_FILTER_MAP[filterId].includes(d));
 }
 
-// 재원 시작일(activeFrom) 이전 날짜에는 출석부에 표시하지 않음
+// 재원 시작일(activeFrom)/퇴원일(withdrawnAt) 기준으로 특정 날짜에 출석부 표시 대상인지 판정
 function isActiveOnDate(student, dateStr) {
   if (student.status === "withdrawn") {
     // 퇴원한 경우, 퇴원일까지의 기록만 표시. 퇴원일이 없으면(구버전 데이터) 표시 안 함
@@ -38,7 +39,7 @@ function isActiveOnDate(student, dateStr) {
   return !student.activeFrom || dateStr >= student.activeFrom;
 }
 
-export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, toggleAttendance, onSelectStudent, notes, addNote, updateNote, deleteNote }) {
+export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, toggleAttendance, onSelectStudent, notes, addNote, updateNote, deleteNote, getDaysAt }) {
   const [viewMode, setViewMode] = useState("week");
   const [calMonth, setCalMonth] = useState({ year: TODAY.getFullYear(), month: TODAY.getMonth() });
   // 주간 출석부는 재원생만, 달력 보기는 퇴원생 포함(과거 출석 기록 보존)
@@ -67,7 +68,17 @@ export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, 
       </div>
 
       <div style={{ marginTop: 12 }}>
-        {viewMode === "week" && <WeekView students={sortedStudents} weekDates={weekDates} weekOffset={weekOffset} setWeekOffset={setWeekOffset} toggleAttendance={toggleAttendance} onSelectStudent={onSelectStudent} />}
+        {viewMode === "week" && (
+          <WeekView
+            students={sortedStudents}
+            weekDates={weekDates}
+            weekOffset={weekOffset}
+            setWeekOffset={setWeekOffset}
+            toggleAttendance={toggleAttendance}
+            onSelectStudent={onSelectStudent}
+            getDaysAt={getDaysAt}
+          />
+        )}
         {viewMode === "calendar" && (
           <CalendarView
             students={sortedAllStudents}
@@ -79,6 +90,7 @@ export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, 
             addNote={addNote}
             updateNote={updateNote}
             deleteNote={deleteNote}
+            getDaysAt={getDaysAt}
           />
         )}
       </div>
@@ -86,7 +98,7 @@ export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, 
   );
 }
 
-function WeekView({ students, weekDates, weekOffset, setWeekOffset, toggleAttendance, onSelectStudent }) {
+function WeekView({ students, weekDates, weekOffset, setWeekOffset, toggleAttendance, onSelectStudent, getDaysAt }) {
   const todayStr = fmtFullDate(TODAY);
   const weekLabel = `${weekDates[0].getMonth() + 1}/${weekDates[0].getDate()} ~ ${weekDates[6].getMonth() + 1}/${weekDates[6].getDate()}`;
   const DAY_NAMES = ["월", "화", "수", "목", "금", "토", "일"];
@@ -164,6 +176,7 @@ function WeekView({ students, weekDates, weekOffset, setWeekOffset, toggleAttend
               onToggle={toggleAttendance}
               onSelect={onSelectStudent}
               isLast={idx === filteredStudents.length - 1}
+              getDaysAt={getDaysAt}
             />
           ))}
         </div>
@@ -172,7 +185,7 @@ function WeekView({ students, weekDates, weekOffset, setWeekOffset, toggleAttend
   );
 }
 
-function WeekRow({ student, weekDates, todayStr, onToggle, onSelect, isLast }) {
+function WeekRow({ student, weekDates, todayStr, onToggle, onSelect, isLast, getDaysAt }) {
   const DAY_NAMES = ["월", "화", "수", "목", "금", "토", "일"];
 
   return (
@@ -198,7 +211,8 @@ function WeekRow({ student, weekDates, todayStr, onToggle, onSelect, isLast }) {
           return <div key={i} style={{ borderLeft: `1px solid ${C.border}`, minHeight: 56 }} />;
         }
 
-        const isScheduled = student.days.includes(dayName);
+        const daysAtDate = getDaysAt ? getDaysAt(student, dateStr) : student.days;
+        const isScheduled = daysAtDate.includes(dayName);
         const status = student.attendance[dateStr]; // true | "makeup" | undefined
         const isChecked = status === true;
         const isMakeup = status === "makeup";
@@ -228,7 +242,7 @@ function WeekRow({ student, weekDates, todayStr, onToggle, onSelect, isLast }) {
   );
 }
 
-function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSelectStudent, notes, addNote, updateNote, deleteNote }) {
+function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSelectStudent, notes, addNote, updateNote, deleteNote, getDaysAt }) {
   const { year, month } = calMonth;
   const [selectedDate, setSelectedDate] = useState(null);
   const todayStr = fmtFullDate(TODAY);
@@ -244,11 +258,15 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
     setSelectedDate(null);
   }
 
+  function daysAt(student, dateStr) {
+    return getDaysAt ? getDaysAt(student, dateStr) : student.days;
+  }
+
   function getDateInfo(day) {
     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     const krDay = ["월","화","수","목","금","토","일"][(new Date(year, month, day).getDay() + 6) % 7];
     const activeStudents = students.filter((s) => isActiveOnDate(s, dateStr));
-    const scheduled = activeStudents.filter((s) => s.days.includes(krDay));
+    const scheduled = activeStudents.filter((s) => daysAt(s, dateStr).includes(krDay));
     const attended = activeStudents.filter((s) => s.attendance[dateStr]);
     const makeupCount = activeStudents.filter((s) => s.attendance[dateStr] === "makeup").length;
     return { dateStr, krDay, scheduled, attended, makeupCount };
@@ -259,14 +277,14 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
     const [y, m2, d] = selectedDate.split("-").map(Number);
     const krDay = ["월","화","수","목","금","토","일"][(new Date(y, m2 - 1, d).getDay() + 6) % 7];
     const activeStudents = students.filter((s) => isActiveOnDate(s, selectedDate));
-    const scheduled = activeStudents.filter((s) => s.days.includes(krDay));
+    const scheduled = activeStudents.filter((s) => daysAt(s, selectedDate).includes(krDay));
     const regular = scheduled.filter((s) => s.classType !== "성인반");
     const adults = scheduled.filter((s) => s.classType === "성인반");
-    // 그 날 실제로 출석(true) 기록이 있는 모든 학생 — 지금 요일 설정이 바뀌었어도 과거 기록은 그대로 표시
+    // 그 날 실제로 출석(true) 기록이 있는 모든 학생 — 요일이 바뀌었거나 퇴원했어도 과거 기록은 그대로 표시
     const allAttendees = activeStudents.filter((s) => s.attendance[selectedDate] === true);
     const regularAttended = allAttendees.filter((s) => s.classType !== "성인반");
     const adultAttended = allAttendees.filter((s) => s.classType === "성인반");
-    // 보강 출석도 마찬가지로 예정된(scheduled) 명단과 무관하게 실제 기록 기준
+    // 보강 출석도 예정된(scheduled) 명단과 무관하게 실제 기록 기준
     const makeupAttendees = activeStudents.filter((s) => s.attendance[selectedDate] === "makeup");
     return {
       krDay,
@@ -327,7 +345,7 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
                     📝 {n.note}
                   </div>
                 ))}
-                {info.scheduled.length > 0 && (
+                {(info.scheduled.length > 0 || info.attended.length > 0) && (
                   <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 3 }}>
                     <span style={{ color: C.green, fontWeight: 700 }}>{info.attended.length}</span>/{info.scheduled.length}
                   </div>
@@ -489,6 +507,7 @@ function DayRow({ student, dateStr, checked, isMakeup, onToggle, onSelect }) {
           <div style={{ minWidth: 0 }}>
             <div style={{ fontWeight: 600, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {student.name}{isMakeup && <span style={{ marginLeft: 4, fontSize: 11, fontWeight: 700, color: C.yellow }}>(보강)</span>}
+              {student.status === "withdrawn" && <span style={{ marginLeft: 4, fontSize: 11, fontWeight: 700, color: C.inkMuted }}>(퇴원)</span>}
             </div>
             <div style={{ fontSize: 11, color: C.inkMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {student.grade}
