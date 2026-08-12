@@ -21,6 +21,7 @@ function fromDbStudent(row) {
     memo: row.memo,
     classType: row.class_type,
     status: row.status || "active",
+    activeFrom: row.active_from || null,
   };
 }
 
