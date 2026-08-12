@@ -109,7 +109,7 @@ deleteNote={deleteNote}
             />
           )}
           {tab === "stats" && (
-            <StatsTab students={students} />
+             <StatsTab students={students.filter((s) => s.status !== "withdrawn")} />
           )}
         </main>
 
