@@ -80,7 +80,13 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
         </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
           <button
-            onClick={() => setStudentStatus(student.id, student.status === "withdrawn" ? "active" : "withdrawn")}
+            onClick={() => {
+              if (student.status === "withdrawn") {
+                setRejoinStep({ activeFrom: fmtFullDate(TODAY) });
+              } else {
+                setStudentStatus(student.id, "withdrawn");
+              }
+            }}
             style={{
               background: "none",
               border: `1px solid ${student.status === "withdrawn" ? C.green : C.border}`,
@@ -97,6 +103,7 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
               setEditing(!editing);
               setForm(student);
               setSessionChangeStep(null);
+              setRejoinStep(null);
             }}
             style={{
               background: "none",
@@ -112,7 +119,41 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
         </div>
       </div>
 
-      {sessionChangeStep ? (
+      {rejoinStep ? (
+        <div style={{ background: C.greenLight, borderRadius: 10, padding: "16px", marginBottom: 12 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6, color: C.green }}>
+            재원 처리
+          </div>
+          <div style={{ fontSize: 13, color: C.ink, marginBottom: 14, lineHeight: 1.5 }}>
+            아래 날짜부터 출석부에 다시 표시됩니다.<br />
+            그 이전 기간은 결석으로 표시되지 않습니다.
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.inkMuted, marginBottom: 6 }}>재원 시작일</div>
+            <input
+              type="date"
+              value={rejoinStep.activeFrom}
+              onChange={(e) => setRejoinStep((s) => ({ ...s, activeFrom: e.target.value }))}
+              onClick={(ev) => ev.target.showPicker?.()}
+              style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 14, outline: "none", background: C.surface, cursor: "pointer", boxSizing: "border-box" }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => setRejoinStep(null)}
+              style={{ flex: 1, padding: "11px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.surface, fontWeight: 600, fontSize: 14 }}
+            >
+              취소
+            </button>
+            <button
+              onClick={() => { setStudentStatus(student.id, "active", rejoinStep.activeFrom); setRejoinStep(null); }}
+              style={{ flex: 1, padding: "11px", borderRadius: 8, border: "none", background: C.green, color: "#fff", fontWeight: 700, fontSize: 14 }}
+            >
+              재원 처리
+            </button>
+          </div>
+        </div>
+      ) : sessionChangeStep ? (
         <div style={{ background: C.accentLight, borderRadius: 10, padding: "16px", marginBottom: 12 }}>
           <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6, color: C.accent }}>
             횟수 변경 확인
