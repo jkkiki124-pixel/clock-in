@@ -22,6 +22,7 @@ function fromDbStudent(row) {
     classType: row.class_type,
     status: row.status || "active",
     activeFrom: row.active_from || null,
+    withdrawnAt: row.withdrawn_at || null,
   };
 }
 
