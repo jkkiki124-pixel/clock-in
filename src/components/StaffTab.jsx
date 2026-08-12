@@ -146,7 +146,11 @@ function StaffModal({ staff, onClose, onUpdate, onDelete }) {
   const [form, setForm] = useState(staff);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const recentDates = Object.keys(staff.attendance).sort().slice(-7).reverse();
+  const monthPrefix = fmtFullDate(TODAY).slice(0, 7); // "YYYY-MM"
+const recentDates = Object.keys(staff.attendance)
+  .filter((d) => d.startsWith(monthPrefix))
+  .sort()
+  .reverse();
 
   return (
     <BottomSheet onClose={onClose}>
@@ -204,11 +208,10 @@ function StaffModal({ staff, onClose, onUpdate, onDelete }) {
                   const rec = staff.attendance[dateStr];
                   return (
                     <div key={dateStr} style={{ background: C.bg, borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: C.ink, minWidth: 80 }}>{dateStr}</div>
-                      <div style={{ fontSize: 13, color: C.green, fontWeight: 600 }}>출근 {rec.clockIn}</div>
-                      {rec.clockOut && <div style={{ fontSize: 13, color: C.inkMuted }}>퇴근 {rec.clockOut}</div>}
-                      {rec.memo && <div style={{ fontSize: 12, color: C.accent, marginLeft: "auto" }}>📝 {rec.memo}</div>}
-                    </div>
+                       <div style={{ fontSize: 13, fontWeight: 600, color: C.ink, minWidth: 80 }}>{dateStr}</div>
+                       <div style={{ fontSize: 13, color: C.green, fontWeight: 600 }}>✅ 출근</div>
+                       {rec.memo && <div style={{ fontSize: 12, color: C.accent, marginLeft: "auto" }}>📝 {rec.memo}</div>}
+                     </div>
                   );
                 })}
               </div>
