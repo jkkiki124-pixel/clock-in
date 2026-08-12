@@ -25,7 +25,7 @@ export default function App() {
   const { staff, setAttendance, addStaff, updateStaff, deleteStaff } = useStaff();
 
   // ── 달력 메모(공휴일/방학 등)
-  const { notes, setNote } = useCalendarNotes();
+  const { notes, addNote, updateNote, deleteNote } = useCalendarNotes();
 
   // ── UI 상태
   const [tab,             setTab]             = useState("attendance");
