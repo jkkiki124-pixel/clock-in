@@ -82,7 +82,7 @@ useEffect(() => {
         <main style={{ maxWidth: 900, margin: "0 auto", padding: "16px 12px 80px" }}>
           {tab === "attendance" && (
             <AttendanceTab
-              students={students.filter((s) => s.status !== "withdrawn")}
+              students={students}
               weekDates={weekDates}
               weekOffset={weekOffset}
               setWeekOffset={setWeekOffset}
