@@ -370,7 +370,7 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
             <MemoNewRow dateStr={selectedDate} onAdd={addNote} />
           </div>
 
-          {selectedInfo.scheduled.length === 0 && selectedInfo.makeupAttendees.length === 0
+          {selectedInfo.scheduled.length === 0 && selectedInfo.makeupAttendees.length === 0 && selectedInfo.attended.length === 0
             ? <EmptyState text="이 날은 수업 예정 학생이 없습니다." />
             : (
               <>
