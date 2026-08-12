@@ -1,5 +1,5 @@
 // 출석부 탭 — 주간 그리드 뷰 + 달력 뷰 (보강 체크 지원, 요일/성인반 분류 필터, 달력 상세는 2열 그리드)
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { C, TODAY, fmtDate, fmtFullDate, getWeekDates, KR_HOLIDAYS_2026 } from "../constants.js";
 import { SummaryCard, EmptyState } from "./ui.jsx";
 
@@ -29,7 +29,7 @@ function matchesDayFilter(student, filterId) {
   return student.days.some((d) => DAY_FILTER_MAP[filterId].includes(d));
 }
 
-export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, toggleAttendance, onSelectStudent, notes, setNote }) {
+export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, toggleAttendance, onSelectStudent, notes, addNote, updateNote, deleteNote }) {
   const [viewMode, setViewMode] = useState("week");
   const [calMonth, setCalMonth] = useState({ year: TODAY.getFullYear(), month: TODAY.getMonth() });
   const sortedStudents = [...students].sort((a, b) => gradeSortKey(a.grade) - gradeSortKey(b.grade));
@@ -57,7 +57,19 @@ export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, 
 
       <div style={{ marginTop: 12 }}>
         {viewMode === "week" && <WeekView students={sortedStudents} weekDates={weekDates} weekOffset={weekOffset} setWeekOffset={setWeekOffset} toggleAttendance={toggleAttendance} onSelectStudent={onSelectStudent} />}
-        {viewMode === "calendar" && <CalendarView students={sortedStudents} calMonth={calMonth} setCalMonth={setCalMonth} toggleAttendance={toggleAttendance} onSelectStudent={onSelectStudent} notes={notes} setNote={setNote} />}
+        {viewMode === "calendar" && (
+          <CalendarView
+            students={sortedStudents}
+            calMonth={calMonth}
+            setCalMonth={setCalMonth}
+            toggleAttendance={toggleAttendance}
+            onSelectStudent={onSelectStudent}
+            notes={notes}
+            addNote={addNote}
+            updateNote={updateNote}
+            deleteNote={deleteNote}
+          />
+        )}
       </div>
     </div>
   );
@@ -198,15 +210,10 @@ function WeekRow({ student, weekDates, todayStr, onToggle, onSelect, isLast }) {
   );
 }
 
-function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSelectStudent, notes, setNote }) {
+function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSelectStudent, notes, addNote, updateNote, deleteNote }) {
   const { year, month } = calMonth;
   const [selectedDate, setSelectedDate] = useState(null);
-  const [memoDraft, setMemoDraft] = useState("");
   const todayStr = fmtFullDate(TODAY);
-
-  useEffect(() => {
-    setMemoDraft(selectedDate ? (notes[selectedDate] || "") : "");
-  }, [selectedDate, notes]);
 
   const firstDay = (new Date(year, month, 1).getDay() + 6) % 7;
   const lastDate = new Date(year, month + 1, 0).getDate();
@@ -235,7 +242,6 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
     const scheduled = students.filter((s) => s.days.includes(krDay));
     const regular = scheduled.filter((s) => s.classType !== "성인반");
     const adults = scheduled.filter((s) => s.classType === "성인반");
-    // 보강 출석은 예정된(scheduled) 명단과 무관하게 그 날 실제로 "makeup" 상태인 모든 학생을 잡음
     const makeupAttendees = students.filter((s) => s.attendance[selectedDate] === "makeup");
     return {
       krDay,
@@ -248,6 +254,8 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
       makeupAttendees,
     };
   }, [selectedDate, students]);
+
+  const selectedNotes = selectedDate ? (notes[selectedDate] || []) : [];
 
   return (
     <div>
@@ -275,7 +283,7 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
             const isSelected = info.dateStr === selectedDate;
             const colIdx = idx % 7;
             const holiday = KR_HOLIDAYS_2026[info.dateStr];
-            const note = notes[info.dateStr];
+            const noteList = notes[info.dateStr] || [];
 
             return (
               <div key={day} onClick={() => setSelectedDate(isSelected ? null : info.dateStr)}
@@ -289,9 +297,9 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
                     {holiday}
                   </div>
                 )}
-                {note && (
+                {noteList.length > 0 && (
                   <div style={{ fontSize: 10, color: C.blue, fontWeight: 600, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    📝 {note}
+                    📝 {noteList[0].note}{noteList.length > 1 ? ` 외 ${noteList.length - 1}` : ""}
                   </div>
                 )}
                 {info.scheduled.length > 0 && (
@@ -331,19 +339,10 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
 
           <div style={{ padding: "12px 16px", borderBottom: `1px solid ${C.border}` }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: C.inkMuted, marginBottom: 6 }}>메모 (방학, 휴원 등)</div>
-            <textarea
-              value={memoDraft}
-              onChange={(e) => setMemoDraft(e.target.value)}
-              placeholder="예: 여름방학, 임시휴원 등"
-              rows={2}
-              style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 13, resize: "vertical", boxSizing: "border-box" }}
-            />
-            <button
-              onClick={() => setNote(selectedDate, memoDraft)}
-              style={{ marginTop: 6, padding: "7px 14px", borderRadius: 8, border: "none", background: C.accent, color: "#fff", fontWeight: 600, fontSize: 13 }}
-            >
-              메모 저장
-            </button>
+            {selectedNotes.map((n) => (
+              <MemoRow key={n.id} note={n} onUpdate={updateNote} onDelete={deleteNote} />
+            ))}
+            <MemoNewRow dateStr={selectedDate} onAdd={addNote} />
           </div>
 
           {selectedInfo.scheduled.length === 0 && selectedInfo.makeupAttendees.length === 0
@@ -399,6 +398,54 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
         </div>
       )}
     </div>
+  );
+}
+
+// 기존 메모 한 줄 (수정 가능, ✕ 누르면 삭제)
+function MemoRow({ note, onUpdate, onDelete }) {
+  const [value, setValue] = useState(note.note);
+
+  function save() {
+    if (value !== note.note) onUpdate(note.id, value);
+  }
+
+  return (
+    <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+      <input
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={save}
+        onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }}
+        style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 13, boxSizing: "border-box" }}
+      />
+      <button
+        onClick={() => onDelete(note.id)}
+        style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 8, border: `1px solid ${C.border}`, background: C.surface, color: C.inkMuted, fontSize: 14 }}
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
+// 맨 아래 항상 떠 있는 빈 입력칸 — Enter 치면 메모 추가 후 다시 빈칸으로
+function MemoNewRow({ dateStr, onAdd }) {
+  const [value, setValue] = useState("");
+
+  function submit() {
+    if (!value.trim()) return;
+    onAdd(dateStr, value);
+    setValue("");
+  }
+
+  return (
+    <input
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+      placeholder="메모 입력 후 Enter (예: 여름방학, 임시휴원)"
+      style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 13, boxSizing: "border-box" }}
+    />
   );
 }
 
