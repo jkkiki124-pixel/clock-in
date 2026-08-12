@@ -244,9 +244,13 @@ export function useStudents() {
     await loadStudents();
   }
 
-  // 퇴원/재원 처리
-  async function setStudentStatus(studentId, status) {
-    await supabase.from("students").update({ status }).eq("id", studentId);
+  // 퇴원/재원 처리 (재원 처리 시 재원 시작일을 함께 저장)
+  async function setStudentStatus(studentId, status, activeFrom = null) {
+    const update = { status };
+    if (status === "active") {
+      update.active_from = activeFrom || fmtFullDate(new Date());
+    }
+    await supabase.from("students").update(update).eq("id", studentId);
     await loadStudents();
   }
 
