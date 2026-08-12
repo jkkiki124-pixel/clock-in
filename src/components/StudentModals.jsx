@@ -17,6 +17,7 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [sessionChangeStep, setSessionChangeStep] = useState(null); // { newTotalSessions, effectiveFrom }
   const [rejoinStep, setRejoinStep] = useState(null); // { activeFrom }
+  const [withdrawStep, setWithdrawStep] = useState(null); // { withdrawnAt }
 
   const currentMonth = `${TODAY.getFullYear()}-${String(TODAY.getMonth() + 1).padStart(2, "0")}`;
   const monthPayment = student.payments.find((p) => p.month === currentMonth);
@@ -84,7 +85,7 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
               if (student.status === "withdrawn") {
                 setRejoinStep({ activeFrom: fmtFullDate(TODAY) });
               } else {
-                setStudentStatus(student.id, "withdrawn");
+                setWithdrawStep({ withdrawnAt: fmtFullDate(TODAY) });
               }
             }}
             style={{
@@ -104,6 +105,7 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
               setForm(student);
               setSessionChangeStep(null);
               setRejoinStep(null);
+              setWithdrawStep(null);
             }}
             style={{
               background: "none",
@@ -118,8 +120,42 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
           </button>
         </div>
       </div>
-
-      {rejoinStep ? (
+{withdrawStep ? (
+        <div style={{ background: C.accentLight, borderRadius: 10, padding: "16px", marginBottom: 12 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6, color: C.accent }}>
+            퇴원 처리
+          </div>
+          <div style={{ fontSize: 13, color: C.ink, marginBottom: 14, lineHeight: 1.5 }}>
+            아래 날짜까지의 출석 기록은 달력에 그대로 남고,<br />
+            그 다음 날부터는 출석부에 표시되지 않습니다.
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.inkMuted, marginBottom: 6 }}>퇴원일</div>
+            <input
+              type="date"
+              value={withdrawStep.withdrawnAt}
+              onChange={(e) => setWithdrawStep((s) => ({ ...s, withdrawnAt: e.target.value }))}
+              onClick={(ev) => ev.target.showPicker?.()}
+              style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 14, outline: "none", background: C.surface, cursor: "pointer", boxSizing: "border-box" }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => setWithdrawStep(null)}
+              style={{ flex: 1, padding: "11px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.surface, fontWeight: 600, fontSize: 14 }}
+            >
+              취소
+            </button>
+            <button
+              onClick={() => { setStudentStatus(student.id, "withdrawn", withdrawStep.withdrawnAt); setWithdrawStep(null); }}
+              style={{ flex: 1, padding: "11px", borderRadius: 8, border: "none", background: C.accent, color: "#fff", fontWeight: 700, fontSize: 14 }}
+            >
+              퇴원 처리
+            </button>
+          </div>
+        </div>
+      ) : rejoinStep ? (
+    
         <div style={{ background: C.greenLight, borderRadius: 10, padding: "16px", marginBottom: 12 }}>
           <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6, color: C.green }}>
             재원 처리
