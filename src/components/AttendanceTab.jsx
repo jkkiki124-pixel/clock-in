@@ -29,9 +29,10 @@ function matchesDayFilter(student, filterId) {
   return student.days.some((d) => DAY_FILTER_MAP[filterId].includes(d));
 }
 
-// 재원 시작일(activeFrom) 이전 날짜에는 출석부에 표시하지 않음
+// 재원 시작일(activeFrom) 또는 등록일(registeredAt) 이전 날짜에는 출석부에 표시하지 않음
 function isActiveOnDate(student, dateStr) {
-  return !student.activeFrom || dateStr >= student.activeFrom;
+  const startDate = student.activeFrom || student.registeredAt;
+  return !startDate || dateStr >= startDate;
 }
 
 export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, toggleAttendance, onSelectStudent, notes, addNote, updateNote, deleteNote }) {
