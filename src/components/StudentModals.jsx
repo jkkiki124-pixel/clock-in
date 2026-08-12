@@ -16,6 +16,7 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
   const [form, setForm] = useState(student);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [sessionChangeStep, setSessionChangeStep] = useState(null); // { newTotalSessions, effectiveFrom }
+  const [rejoinStep, setRejoinStep] = useState(null); // { activeFrom }
 
   const currentMonth = `${TODAY.getFullYear()}-${String(TODAY.getMonth() + 1).padStart(2, "0")}`;
   const monthPayment = student.payments.find((p) => p.month === currentMonth);
