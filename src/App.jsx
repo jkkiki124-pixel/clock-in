@@ -79,8 +79,10 @@ export default function App() {
               setWeekOffset={setWeekOffset}
               toggleAttendance={toggleAttendance}
               onSelectStudent={handleSelectStudent}
-              notes={notes}
-              setNote={setNote}
+             notes={notes}
+addNote={addNote}
+updateNote={updateNote}
+deleteNote={deleteNote}
             />
           )}
 
