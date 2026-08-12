@@ -256,16 +256,20 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
     const scheduled = activeStudents.filter((s) => s.days.includes(krDay));
     const regular = scheduled.filter((s) => s.classType !== "성인반");
     const adults = scheduled.filter((s) => s.classType === "성인반");
-    // 보강 출석은 예정된(scheduled) 명단과 무관하게 그 날 실제로 "makeup" 상태인 모든 학생을 잡음 (재원 시작일 이전 제외)
+    // 그 날 실제로 출석(true) 기록이 있는 모든 학생 — 지금 요일 설정이 바뀌었어도 과거 기록은 그대로 표시
+    const allAttendees = activeStudents.filter((s) => s.attendance[selectedDate] === true);
+    const regularAttended = allAttendees.filter((s) => s.classType !== "성인반");
+    const adultAttended = allAttendees.filter((s) => s.classType === "성인반");
+    // 보강 출석도 마찬가지로 예정된(scheduled) 명단과 무관하게 실제 기록 기준
     const makeupAttendees = activeStudents.filter((s) => s.attendance[selectedDate] === "makeup");
     return {
       krDay,
       scheduled,
-      attended: scheduled.filter((s) => s.attendance[selectedDate]),
-      regularAttended: regular.filter((s) => s.attendance[selectedDate] === true),
-      regularNotAttended: regular.filter((s) => !s.attendance[selectedDate]),
-      adultAttended: adults.filter((s) => s.attendance[selectedDate] === true),
-      adultNotAttended: adults.filter((s) => !s.attendance[selectedDate]),
+      attended: allAttendees,
+      regularAttended,
+      regularNotAttended: regular.filter((s) => s.attendance[selectedDate] !== true),
+      adultAttended,
+      adultNotAttended: adults.filter((s) => s.attendance[selectedDate] !== true),
       makeupAttendees,
     };
   }, [selectedDate, students]);
