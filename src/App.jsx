@@ -19,7 +19,7 @@ export default function App() {
   const { authed, isFirstRun, changePwOpen, setChangePwOpen, login, logout, changePw } = useAuth();
 
   // ── 학생 데이터 (Supabase 영구저장)
-  const { students, toggleAttendance, togglePayment, setPayment, addStudent, updateStudent, deleteStudent, setStudentStatus, addSessionConfigChange } = useStudents();
+  const { students, toggleAttendance, togglePayment, setPayment, addStudent, updateStudent, deleteStudent, setStudentStatus, addSessionConfigChange, addDayConfigChange, getDaysAt } = useStudents();
 
   // ── 보조요원 데이터
   const { staff, setAttendance, addStaff, updateStaff, deleteStaff } = useStaff();
@@ -34,13 +34,13 @@ export default function App() {
   const [addOpen,         setAddOpen]         = useState(false);
   const [showTop, setShowTop] = useState(false);
 
-useEffect(() => {
-  function onScroll() {
-    setShowTop(window.scrollY > 300);
-  }
-  window.addEventListener("scroll", onScroll);
-  return () => window.removeEventListener("scroll", onScroll);
-}, []);
+  useEffect(() => {
+    function onScroll() {
+      setShowTop(window.scrollY > 300);
+    }
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const baseDate  = useMemo(() => { const d = new Date(TODAY); d.setDate(d.getDate() + weekOffset * 7); return d; }, [weekOffset]);
   const weekDates = useMemo(() => getWeekDates(baseDate), [baseDate]);
@@ -88,10 +88,11 @@ useEffect(() => {
               setWeekOffset={setWeekOffset}
               toggleAttendance={toggleAttendance}
               onSelectStudent={handleSelectStudent}
-             notes={notes}
-addNote={addNote}
-updateNote={updateNote}
-deleteNote={deleteNote}
+              notes={notes}
+              addNote={addNote}
+              updateNote={updateNote}
+              deleteNote={deleteNote}
+              getDaysAt={getDaysAt}
             />
           )}
 
@@ -118,7 +119,7 @@ deleteNote={deleteNote}
             />
           )}
           {tab === "stats" && (
-             <StatsTab students={students.filter((s) => s.status !== "withdrawn")} />
+            <StatsTab students={students.filter((s) => s.status !== "withdrawn")} />
           )}
         </main>
 
@@ -132,6 +133,7 @@ deleteNote={deleteNote}
             togglePayment={togglePayment}
             setStudentStatus={setStudentStatus}
             onSessionChange={addSessionConfigChange}
+            onDayChange={addDayConfigChange}
           />
         )}
 
@@ -143,7 +145,7 @@ deleteNote={deleteNote}
           />
         )}
 
-{/* 비밀번호 변경 모달 */}
+        {/* 비밀번호 변경 모달 */}
         {changePwOpen && (
           <ChangePwModal
             isFirst={isFirstRun}
@@ -170,4 +172,4 @@ deleteNote={deleteNote}
       </div>
     </>
   );
-}    
+}
