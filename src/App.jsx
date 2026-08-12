@@ -171,7 +171,3 @@ deleteNote={deleteNote}
     </>
   );
 }    
-      </div>
-    </>
-  );
-}
