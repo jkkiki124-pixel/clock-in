@@ -37,7 +37,9 @@ function isActiveOnDate(student, dateStr) {
 export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, toggleAttendance, onSelectStudent, notes, addNote, updateNote, deleteNote }) {
   const [viewMode, setViewMode] = useState("week");
   const [calMonth, setCalMonth] = useState({ year: TODAY.getFullYear(), month: TODAY.getMonth() });
-  const sortedStudents = [...students].sort((a, b) => gradeSortKey(a.grade) - gradeSortKey(b.grade));
+  // 주간 출석부는 재원생만, 달력 보기는 퇴원생 포함(과거 출석 기록 보존)
+  const sortedStudents = [...students].filter((s) => s.status !== "withdrawn").sort((a, b) => gradeSortKey(a.grade) - gradeSortKey(b.grade));
+  const sortedAllStudents = [...students].sort((a, b) => gradeSortKey(a.grade) - gradeSortKey(b.grade));
 
   return (
     <div>
@@ -64,7 +66,7 @@ export function AttendanceTab({ students, weekDates, weekOffset, setWeekOffset, 
         {viewMode === "week" && <WeekView students={sortedStudents} weekDates={weekDates} weekOffset={weekOffset} setWeekOffset={setWeekOffset} toggleAttendance={toggleAttendance} onSelectStudent={onSelectStudent} />}
         {viewMode === "calendar" && (
           <CalendarView
-            students={sortedStudents}
+            students={sortedAllStudents}
             calMonth={calMonth}
             setCalMonth={setCalMonth}
             toggleAttendance={toggleAttendance}
