@@ -246,10 +246,12 @@ export function useStudents() {
   }
 
   // 퇴원/재원 처리 (재원 처리 시 재원 시작일을 함께 저장)
-  async function setStudentStatus(studentId, status, activeFrom = null) {
+  async function setStudentStatus(studentId, status, dateValue = null) {
     const update = { status };
     if (status === "active") {
-      update.active_from = activeFrom || fmtFullDate(new Date());
+      update.active_from = dateValue || fmtFullDate(new Date());
+    } else if (status === "withdrawn") {
+      update.withdrawn_at = dateValue || fmtFullDate(new Date());
     }
     await supabase.from("students").update(update).eq("id", studentId);
     await loadStudents();
