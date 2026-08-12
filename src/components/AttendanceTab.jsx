@@ -277,7 +277,7 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
           {cells.map((day, idx) => {
-            if (!day) return <div key={`e${idx}`} style={{ minHeight: 92, borderRight: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }} />;
+            if (!day) return <div key={`e${idx}`} style={{ minHeight: 110, borderRight: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }} />;
             const info = getDateInfo(day);
             const isToday = info.dateStr === todayStr;
             const isSelected = info.dateStr === selectedDate;
@@ -287,7 +287,7 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
 
             return (
               <div key={day} onClick={() => setSelectedDate(isSelected ? null : info.dateStr)}
-                style={{ minHeight: 92, padding: "6px 4px", borderRight: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, cursor: "pointer", background: isSelected ? C.accentLight : isToday ? "#fffaf8" : C.surface, transition: "background 0.12s" }}
+                style={{ minHeight: 110, padding: "6px 4px", borderRight: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, cursor: "pointer", background: isSelected ? C.accentLight : isToday ? "#fffaf8" : C.surface, transition: "background 0.12s" }}
               >
                 <div style={{ fontSize: 14, fontWeight: isToday ? 700 : 500, marginBottom: 4, display: "flex", alignItems: "center", gap: 3, color: isToday ? C.accent : holiday ? "#E04040" : colIdx===6 ? "#E04040" : colIdx===5 ? C.blue : C.ink }}>
                   {day}{isToday && <span style={{ width: 5, height: 5, borderRadius: "50%", background: C.accent, display: "inline-block" }} />}
@@ -297,11 +297,11 @@ function CalendarView({ students, calMonth, setCalMonth, toggleAttendance, onSel
                     {holiday}
                   </div>
                 )}
-                {noteList.length > 0 && (
-                  <div style={{ fontSize: 10, color: C.blue, fontWeight: 600, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    📝 {noteList[0].note}{noteList.length > 1 ? ` 외 ${noteList.length - 1}` : ""}
+                {noteList.map((n) => (
+                  <div key={n.id} style={{ fontSize: 10, color: C.blue, fontWeight: 600, marginBottom: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    📝 {n.note}
                   </div>
-                )}
+                ))}
                 {info.scheduled.length > 0 && (
                   <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 3 }}>
                     <span style={{ color: C.green, fontWeight: 700 }}>{info.attended.length}</span>/{info.scheduled.length}
