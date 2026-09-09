@@ -48,13 +48,17 @@ function toDbStudent(data) {
 // 출석 기록을 "구간"별로 나누고, 각 구간 안에서만 날짜순으로 회차 번호를 계산한다.
 // history: [{ effectiveFrom: "YYYY-MM-DD", totalSessions: N }, ...] (이미 오름차순 정렬된 상태로 전달됨)
 // attendanceDates: 그 학생의 출석된 날짜 문자열 배열 (makeup 포함, 정렬 전)
-function computeSessionNumbers(history, attendanceDates) {
-  const result = {}; // { dateStr: sessionNumber }
-  if (!history || history.length === 0) return result;
-
+// 출석일들을 회차 이력 구간(segment)별로 나눠서 묶는다. (배열 인덱스 = history 인덱스)
+// 이력의 effective_from보다 이전 날짜라도 마땅히 속할 구간이 없으면 첫 번째 구간에 포함시킨다(fallback).
+// ★ computeSessionNumbers와 computeCurrentCycleInfo가 반드시 이 함수 하나만 공유해서 써야
+//   "이 날짜가 어느 구간 소속인지" 판단이 두 곳에서 어긋나는 일이 없다.
+//   (실제로 이전에는 이 fallback 규칙이 한쪽에만 있고 다른 쪽엔 없어서,
+//    session_config_history 백필 데이터처럼 effective_from이 실제 출석일보다 늦게 기록된 경우
+//    "N회" 라벨과 "진행회차"가 서로 다른 값을 보여주는 버그가 있었음)
+function assignDatesToSegments(history, attendanceDates) {
   const sortedDates = [...attendanceDates].sort();
+  const segmentBuckets = history.map(() => []);
 
-  // 각 출석일이 속하는 구간(index)을 찾는 헬퍼
   function findSegmentIndex(dateStr) {
     let idx = 0;
     for (let i = 0; i < history.length; i++) {
@@ -64,12 +68,18 @@ function computeSessionNumbers(history, attendanceDates) {
     return idx;
   }
 
-  // 구간별로 날짜를 묶는다
-  const segmentBuckets = history.map(() => []);
   sortedDates.forEach((dateStr) => {
-    const segIdx = findSegmentIndex(dateStr);
-    segmentBuckets[segIdx].push(dateStr);
+    segmentBuckets[findSegmentIndex(dateStr)].push(dateStr);
   });
+
+  return segmentBuckets;
+}
+
+function computeSessionNumbers(history, attendanceDates) {
+  const result = {}; // { dateStr: sessionNumber }
+  if (!history || history.length === 0) return result;
+
+  const segmentBuckets = assignDatesToSegments(history, attendanceDates);
 
   // 구간별로 순번 계산
   segmentBuckets.forEach((dates, segIdx) => {
@@ -92,12 +102,13 @@ function computeCurrentCycleInfo(history, attendanceDates) {
   if (!history || history.length === 0) {
     return { currentSessionNumber: null, remainingSessions: null, isExhausted: false };
   }
-  const currentSegment = history[history.length - 1]; // history는 effective_from 오름차순 정렬되어 전달됨
-  const total = currentSegment.totalSessions;
-  const datesInCurrentSegment = attendanceDates.filter((d) => d >= currentSegment.effectiveFrom).sort();
+  const lastIdx = history.length - 1;
+  const total = history[lastIdx].totalSessions;
+  const segmentBuckets = assignDatesToSegments(history, attendanceDates);
+  const datesInCurrentSegment = segmentBuckets[lastIdx];
 
-  if (datesInCurrentSegment.length === 0) {
-    // 새 구간이 시작됐지만 아직 그 구간에 출석 기록이 없음 → 처음부터 다시 시작
+  if (!datesInCurrentSegment || datesInCurrentSegment.length === 0) {
+    // 현재(가장 마지막) 구간에 아직 출석 기록이 없음 → 처음부터 다시 시작
     return { currentSessionNumber: null, remainingSessions: total, isExhausted: false };
   }
 
