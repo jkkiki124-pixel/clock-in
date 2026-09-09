@@ -6,7 +6,7 @@ import { BottomSheet, Section, InfoGrid, StudentForm } from "./ui.jsx";
 const BLANK_FORM = {
   name: "", grade: "", phone: "", parentPhone: "",
   registeredAt: fmtFullDate(TODAY),
-  type: "월정액", fee: 150000, totalSessions: 10, usedSessions: 0,
+  type: "월정액", fee: 150000, totalSessions: 10,
   days: [], memo: "", classType: "초등부", status: "active",
 };
 
@@ -30,10 +30,13 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
   const monthPayment = student.payments.find((p) => p.month === currentMonth);
   const isPaid = monthPayment ? monthPayment.paid : false;
 
-  const isExhausted = student.type === "횟수제" && student.usedSessions >= student.totalSessions;
-  const remaining = student.type === "횟수제" ? student.totalSessions - student.usedSessions : null;
-  const sessionDates = Object.keys(student.sessionNumbers || {}).sort();
-  const currentSessionNumber = sessionDates.length > 0 ? student.sessionNumbers[sessionDates[sessionDates.length - 1]] : null;
+  // 진행회차/잔여/마감여부는 useStudents.js의 loadStudents()에서
+  // sessionNumbers(이력 기반 계산) 하나만을 근거로 이미 계산되어 내려온다.
+  // (예전에는 여기서 별도의 usedSessions 카운터로 다시 계산했는데,
+  //  결제 리셋 시점과 회차 이력 구간이 어긋나면 두 값이 서로 달라지는 문제가 있었음)
+  const isExhausted = student.isExhausted;
+  const remaining = student.remainingSessions;
+  const currentSessionNumber = student.currentSessionNumber;
 
   function handleSave() {
     const sessionsChanged = form.type === "횟수제" && Number(form.totalSessions) !== Number(student.totalSessions);
