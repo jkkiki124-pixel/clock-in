@@ -70,6 +70,10 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
   }
 
   function confirmDayChange() {
+    // 이력(day_config_history)만 쌓고 학생 레코드 자체(days/class_type)는 갱신하지 않던 버그 수정.
+    // 요일만 단독으로 바꿀 때는 onUpdate가 호출될 경로가 없어서, 상세화면에 보이는 "수업 요일"이
+    // 이력에는 새 값이 쌓였음에도 계속 예전 값으로 남아있었음.
+    onUpdate(form);
     onDayChange(student.id, dayChangeStep.newDays, dayChangeStep.effectiveFrom, dayChangeStep.newClassType);
     setDayChangeStep(null);
     setEditing(false);
