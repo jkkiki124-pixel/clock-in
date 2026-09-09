@@ -17,7 +17,6 @@ function fromDbStudent(row) {
     type: row.type,
     fee: row.fee,
     totalSessions: row.total_sessions,
-    usedSessions: row.used_sessions,
     days: row.days || [],
     memo: row.memo,
     classType: row.class_type,
@@ -38,7 +37,6 @@ function toDbStudent(data) {
     type: data.type,
     fee: data.fee,
     total_sessions: data.totalSessions,
-    used_sessions: data.usedSessions,
     days: data.days,
     memo: data.memo,
     class_type: data.classType,
@@ -82,6 +80,24 @@ function computeSessionNumbers(history, attendanceDates) {
   });
 
   return result;
+}
+
+// sessionNumbers(날짜별 회차 번호)만을 유일한 근거로 "진행 회차 / 잔여 횟수 / 마감 여부"를 계산.
+// 예전에는 이 값들을 students.used_sessions 라는 별도 카운터로 관리했는데,
+// 결제 시점에 0으로 리셋되는 시점과 회차 이력(session_config_history) 구간이 바뀌는 시점이 어긋나면서
+// "화면에 보이는 N회 라벨"과 "잔여/마감 판정"이 서로 다른 값을 가리키는 문제가 있었음.
+// 이제는 sessionNumbers 하나만 계산해서 두 값 모두 거기서 파생시키므로 항상 일치한다.
+function computeCurrentCycleInfo(sessionNumbers, totalSessions) {
+  const dates = Object.keys(sessionNumbers).sort();
+  if (dates.length === 0 || !totalSessions) {
+    return { currentSessionNumber: null, remainingSessions: totalSessions ?? null, isExhausted: false };
+  }
+  const currentSessionNumber = sessionNumbers[dates[dates.length - 1]];
+  return {
+    currentSessionNumber,
+    remainingSessions: Math.max(0, totalSessions - currentSessionNumber),
+    isExhausted: currentSessionNumber === totalSessions,
+  };
 }
 
 // 요일 변경 이력을 기준으로, 특정 날짜에 적용되던 수업 요일을 계산
@@ -147,12 +163,19 @@ export function useStudents() {
         .map((h) => ({ effectiveFrom: h.effective_from, days: h.days || [], classType: h.class_type }));
 
       const sessionNumbers = student.type === "횟수제" ? computeSessionNumbers(history, attendanceDates) : {};
+      const { currentSessionNumber, remainingSessions, isExhausted } =
+        student.type === "횟수제"
+          ? computeCurrentCycleInfo(sessionNumbers, student.totalSessions)
+          : { currentSessionNumber: null, remainingSessions: null, isExhausted: false };
 
       const payments = (paymentRows || [])
         .filter((p) => p.student_id === student.id)
         .map((p) => ({ month: p.month, paid: p.paid, paidAt: p.paid_at, method: p.method, amount: p.amount, note: p.note }));
 
-      return { ...student, attendance, sessionNumbers, sessionHistory: history, dayHistory, payments };
+      return {
+        ...student, attendance, sessionNumbers, sessionHistory: history, dayHistory, payments,
+        currentSessionNumber, remainingSessions, isExhausted,
+      };
     });
 
     setStudents(merged);
@@ -166,9 +189,10 @@ export function useStudents() {
     return computeDaysAt(student.dayHistory, dateStr, student.days);
   }
 
-  // 출석 토글 — isMakeup이 true면 보강으로 기록, 횟수제는 usedSessions 자동 증감
-  // 회차 번호는 저장하지 않고(더 이상 attendance.session_number를 쓰지 않음),
-  // loadStudents() 시점에 이력 기반으로 항상 재계산되므로 순서와 무관하게 항상 정확함
+  // 출석 토글 — isMakeup이 true면 보강으로 기록.
+  // 회차 번호(N회)와 잔여/마감 여부는 별도로 저장하지 않고,
+  // loadStudents() 시점에 attendance 테이블 + 이력을 기준으로 항상 재계산되므로
+  // 순서·삭제·정정과 무관하게 항상 정확하고 서로 일치함.
   async function toggleAttendance(studentId, dateStr, isMakeup = false) {
     const key = `${studentId}`; // 학생 단위로 잠가서 다른 날짜 칸도 순차 처리되게 함
     if (pendingToggles.current.has(key)) return; // 처리 중이면 중복 클릭 무시
@@ -184,11 +208,6 @@ export function useStudents() {
         await supabase.from("attendance").delete().eq("student_id", studentId).eq("date", dateStr);
       } else {
         await supabase.from("attendance").insert({ student_id: studentId, date: dateStr, is_makeup: isMakeup });
-      }
-
-      if (student.type === "횟수제") {
-        const nextUsed = Math.max(0, (student.usedSessions || 0) + (isAttending ? -1 : 1));
-        await supabase.from("students").update({ used_sessions: nextUsed }).eq("id", studentId);
       }
 
       await loadStudents();
@@ -227,10 +246,6 @@ export function useStudents() {
       await supabase.from("payments").update({ paid: true, paid_at: paidAt, method, amount, note }).eq("student_id", studentId).eq("month", month);
     } else {
       await supabase.from("payments").insert({ student_id: studentId, month, paid: true, paid_at: paidAt, method, amount, note });
-    }
-    // 횟수제 학생이 결제 확인되면 회차 카운트 자동 리셋
-    if (paid && student.type === "횟수제") {
-      await supabase.from("students").update({ used_sessions: 0 }).eq("id", studentId);
     }
     await loadStudents();
   }
