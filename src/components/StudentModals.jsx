@@ -351,8 +351,8 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
                 { label: "수강 유형", value: student.type },
                 { label: "수강료", value: `${student.fee.toLocaleString()}원` },
                 { label: "수업 요일", value: student.days.join(", ") },
-                student.type === "횟수제" && currentSessionNumber !== null
-                  ? { label: "진행회차", value: `${currentSessionNumber}회` }
+                student.type === "횟수제"
+                  ? { label: "진행회차", value: `${currentSessionNumber ?? 0}회 / ${student.totalSessions}회` }
                   : null,
               ].filter(Boolean)}
             />
