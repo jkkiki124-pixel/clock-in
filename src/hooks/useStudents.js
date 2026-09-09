@@ -82,21 +82,30 @@ function computeSessionNumbers(history, attendanceDates) {
   return result;
 }
 
-// sessionNumbers(날짜별 회차 번호)만을 유일한 근거로 "진행 회차 / 잔여 횟수 / 마감 여부"를 계산.
-// 예전에는 이 값들을 students.used_sessions 라는 별도 카운터로 관리했는데,
-// 결제 시점에 0으로 리셋되는 시점과 회차 이력(session_config_history) 구간이 바뀌는 시점이 어긋나면서
-// "화면에 보이는 N회 라벨"과 "잔여/마감 판정"이 서로 다른 값을 가리키는 문제가 있었음.
-// 이제는 sessionNumbers 하나만 계산해서 두 값 모두 거기서 파생시키므로 항상 일치한다.
-function computeCurrentCycleInfo(sessionNumbers, totalSessions) {
-  const dates = Object.keys(sessionNumbers).sort();
-  if (dates.length === 0 || !totalSessions) {
-    return { currentSessionNumber: null, remainingSessions: totalSessions ?? null, isExhausted: false };
+// "진행 회차 / 잔여 횟수 / 마감 여부"는 항상 "현재(=가장 마지막) 구간" 기준으로 계산한다.
+// 주의: sessionNumbers 전체에서 "가장 최근 출석일"을 그냥 가져오면 안 된다 —
+// 총 횟수를 방금 바꿔서 새 구간이 시작된 직후, 아직 그 구간에 출석 기록이 하나도 없다면
+// "가장 최근 출석일"은 여전히 예전 구간(예: 8회 기준)의 마지막 날짜를 가리키게 되어
+// 화면에 예전 회차 숫자가 그대로 남아있는 것처럼 보이는 버그가 있었음.
+// 그래서 여기서는 "현재 구간의 시작일(effectiveFrom) 이후" 출석만 세어서 계산한다.
+function computeCurrentCycleInfo(history, attendanceDates) {
+  if (!history || history.length === 0) {
+    return { currentSessionNumber: null, remainingSessions: null, isExhausted: false };
   }
-  const currentSessionNumber = sessionNumbers[dates[dates.length - 1]];
+  const currentSegment = history[history.length - 1]; // history는 effective_from 오름차순 정렬되어 전달됨
+  const total = currentSegment.totalSessions;
+  const datesInCurrentSegment = attendanceDates.filter((d) => d >= currentSegment.effectiveFrom).sort();
+
+  if (datesInCurrentSegment.length === 0) {
+    // 새 구간이 시작됐지만 아직 그 구간에 출석 기록이 없음 → 처음부터 다시 시작
+    return { currentSessionNumber: null, remainingSessions: total, isExhausted: false };
+  }
+
+  const currentSessionNumber = ((datesInCurrentSegment.length - 1) % total) + 1;
   return {
     currentSessionNumber,
-    remainingSessions: Math.max(0, totalSessions - currentSessionNumber),
-    isExhausted: currentSessionNumber === totalSessions,
+    remainingSessions: Math.max(0, total - currentSessionNumber),
+    isExhausted: currentSessionNumber === total,
   };
 }
 
@@ -165,7 +174,7 @@ export function useStudents() {
       const sessionNumbers = student.type === "횟수제" ? computeSessionNumbers(history, attendanceDates) : {};
       const { currentSessionNumber, remainingSessions, isExhausted } =
         student.type === "횟수제"
-          ? computeCurrentCycleInfo(sessionNumbers, student.totalSessions)
+          ? computeCurrentCycleInfo(history, attendanceDates)
           : { currentSessionNumber: null, remainingSessions: null, isExhausted: false };
 
       const payments = (paymentRows || [])
