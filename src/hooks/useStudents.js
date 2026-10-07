@@ -1,9 +1,37 @@
 // 학생 데이터 훅 — Supabase 연동 버전 (CRUD + 출석/납부 관리, 보강/반 구분/납부방법 지원)
 // ★ 회차(session) 계산은 "session_config_history" 이력 기반 구간 계산 방식 사용
 // ★ 요일(days) 계산도 "day_config_history" 이력 기반 구간 계산 방식 사용
+// ★ Supabase는 한 번에 최대 1000행만 돌려주므로, 모든 목록 조회는 fetchAll()로 페이지를 나눠 전부 가져온다.
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabase.js";
 import { fmtFullDate } from "../constants.js";
+
+// 1000행 제한을 넘어도 전부 가져오는 조회 함수
+// orderCols: 페이지가 겹치거나 빠지지 않도록 항상 같은 순서로 정렬할 컬럼들
+async function fetchAll(table, orderCols) {
+  const PAGE_SIZE = 1000;
+  const all = [];
+  let from = 0;
+
+  while (true) {
+    let query = supabase.from(table).select("*");
+    orderCols.forEach((col) => {
+      query = query.order(col, { ascending: true });
+    });
+    const { data, error } = await query.range(from, from + PAGE_SIZE - 1);
+
+    if (error) {
+      console.error(`${table} 조회 실패:`, error);
+      return { data: all, error };
+    }
+
+    all.push(...(data || []));
+    if (!data || data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+
+  return { data: all, error: null };
+}
 
 // DB(snake_case) 행을 앱에서 쓰는 형태(camelCase)로 변환
 function fromDbStudent(row) {
@@ -151,16 +179,11 @@ export function useStudents() {
       return;
     }
 
-    const { data: attendanceRows } = await supabase.from("attendance").select("*");
-    const { data: paymentRows } = await supabase.from("payments").select("*");
-    const { data: historyRows } = await supabase
-      .from("session_config_history")
-      .select("*")
-      .order("effective_from", { ascending: true });
-    const { data: dayHistoryRows } = await supabase
-      .from("day_config_history")
-      .select("*")
-      .order("effective_from", { ascending: true });
+    // ★ 전부 fetchAll로 조회 (기본 1000행 제한 때문에 출석 데이터가 잘리던 문제 수정)
+    const { data: attendanceRows } = await fetchAll("attendance", ["id"]);
+    const { data: paymentRows } = await fetchAll("payments", ["student_id", "month"]);
+    const { data: historyRows } = await fetchAll("session_config_history", ["effective_from", "student_id"]);
+    const { data: dayHistoryRows } = await fetchAll("day_config_history", ["effective_from", "student_id"]);
 
     const merged = (studentRows || []).map((row) => {
       const student = fromDbStudent(row);
@@ -225,9 +248,21 @@ export function useStudents() {
       const isAttending = !!student.attendance[dateStr];
 
       if (isAttending) {
-        await supabase.from("attendance").delete().eq("student_id", studentId).eq("date", dateStr);
+        const { error } = await supabase
+          .from("attendance")
+          .delete()
+          .eq("student_id", studentId)
+          .eq("date", dateStr);
+        if (error) console.error("출석 해제 실패:", error);
       } else {
-        await supabase.from("attendance").insert({ student_id: studentId, date: dateStr, is_makeup: isMakeup });
+        // ★ insert 대신 upsert: 화면 상태와 DB가 어긋나 있어도 (student_id, date) 중복 오류 없이 저장됨
+        const { error } = await supabase
+          .from("attendance")
+          .upsert(
+            { student_id: studentId, date: dateStr, is_makeup: isMakeup },
+            { onConflict: "student_id,date" }
+          );
+        if (error) console.error("출석 저장 실패:", error);
       }
 
       await loadStudents();
