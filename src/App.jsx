@@ -19,7 +19,8 @@ export default function App() {
   const { authed, isFirstRun, changePwOpen, setChangePwOpen, login, logout, changePw } = useAuth();
 
   // ── 학생 데이터 (Supabase 영구저장)
-  const { students, toggleAttendance, togglePayment, setPayment, addStudent, updateStudent, deleteStudent, setStudentStatus, addSessionConfigChange, addDayConfigChange, getDaysAt } = useStudents();
+  // ★ deleteSessionConfigChange, updateSessionConfigDate 추가 (횟수 변경 이력 삭제/적용일 수정)
+  const { students, toggleAttendance, togglePayment, setPayment, addStudent, updateStudent, deleteStudent, setStudentStatus, addSessionConfigChange, deleteSessionConfigChange, updateSessionConfigDate, addDayConfigChange, getDaysAt } = useStudents();
 
   // ── 보조요원 데이터
   const { staff, setAttendance, addStaff, updateStaff, deleteStaff } = useStaff();
@@ -133,6 +134,8 @@ export default function App() {
             togglePayment={togglePayment}
             setStudentStatus={setStudentStatus}
             onSessionChange={addSessionConfigChange}
+            onSessionDelete={deleteSessionConfigChange}
+            onSessionDateChange={updateSessionConfigDate}
             onDayChange={addDayConfigChange}
           />
         )}
