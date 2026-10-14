@@ -16,8 +16,19 @@ function sameDays(a, b) {
   return sa === sb;
 }
 
+// "2026-09-11" → "9/11" (이력 목록 표시용)
+function shortDate(dateStr) {
+  if (!dateStr) return "-";
+  const [, m, d] = dateStr.split("-");
+  return `${Number(m)}/${Number(d)}`;
+}
+
 // ─── 학생 상세 모달 ────────────────────────────────────────
-export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayment, setStudentStatus, onSessionChange, onDayChange }) {
+// onSessionDelete / onSessionDateChange 는 선택 props — 넘기지 않으면 "횟수 변경 이력" 영역이 표시되지 않는다.
+export function StudentModal({
+  student, onClose, onUpdate, onDelete, togglePayment, setStudentStatus,
+  onSessionChange, onDayChange, onSessionDelete, onSessionDateChange,
+}) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(student);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -25,6 +36,7 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
   const [dayChangeStep, setDayChangeStep] = useState(null); // { newDays, newClassType, effectiveFrom }
   const [rejoinStep, setRejoinStep] = useState(null); // { activeFrom }
   const [withdrawStep, setWithdrawStep] = useState(null); // { withdrawnAt }
+  const [historyEdit, setHistoryEdit] = useState(null); // { id, effectiveFrom } — 횟수 이력 적용일 수정 중인 항목
 
   const currentMonth = `${TODAY.getFullYear()}-${String(TODAY.getMonth() + 1).padStart(2, "0")}`;
   const monthPayment = student.payments.find((p) => p.month === currentMonth);
@@ -58,6 +70,10 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
   }
 
   function confirmSessionChange() {
+    if (!sessionChangeStep.effectiveFrom) {
+      alert("적용 시작일을 선택해주세요.");
+      return;
+    }
     onUpdate(form);
     onSessionChange(student.id, sessionChangeStep.newTotalSessions, sessionChangeStep.effectiveFrom);
     const needsDayStep = sessionChangeStep.thenDaysChanged;
@@ -70,6 +86,10 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
   }
 
   function confirmDayChange() {
+    if (!dayChangeStep.effectiveFrom) {
+      alert("적용 시작일을 선택해주세요.");
+      return;
+    }
     // 이력(day_config_history)만 쌓고 학생 레코드 자체(days/class_type)는 갱신하지 않던 버그 수정.
     // 요일만 단독으로 바꿀 때는 onUpdate가 호출될 경로가 없어서, 상세화면에 보이는 "수업 요일"이
     // 이력에는 새 값이 쌓였음에도 계속 예전 값으로 남아있었음.
@@ -83,6 +103,36 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
     onDelete(student.id);
     onClose();
   }
+
+  // 횟수 변경 이력 1건 삭제 (마지막 남은 1건은 삭제 불가 — useStudents.js에서 막음)
+  async function handleHistoryDelete(h) {
+    const ok = window.confirm(
+      `${h.effectiveFrom}부터 ${h.totalSessions}회 이력을 삭제할까요?\n출석 기록은 그대로 유지되고, 회차 계산만 달라집니다.`
+    );
+    if (!ok) return;
+    const res = await onSessionDelete(student.id, h.id);
+    if (res && !res.ok) {
+      alert(res.reason === "last" ? "마지막 남은 이력은 삭제할 수 없어요." : "삭제에 실패했어요. 잠시 후 다시 시도해주세요.");
+    }
+  }
+
+  // 횟수 변경 이력의 적용 시작일만 수정 (총 횟수는 그대로)
+  async function handleHistoryDateSave() {
+    if (!historyEdit.effectiveFrom) {
+      alert("적용 시작일을 선택해주세요.");
+      return;
+    }
+    const res = await onSessionDateChange(student.id, historyEdit.id, historyEdit.effectiveFrom);
+    if (res && !res.ok) {
+      alert(res.reason === "duplicate" ? "그 날짜에 이미 다른 횟수 이력이 있어요. 먼저 그 이력을 삭제하거나 다른 날짜를 선택해주세요." : "수정에 실패했어요. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+    setHistoryEdit(null);
+  }
+
+  const sessionHistory = student.sessionHistory || [];
+  const showSessionHistory =
+    student.type === "횟수제" && sessionHistory.length > 0 && onSessionDelete && onSessionDateChange;
 
   return (
     <BottomSheet onClose={onClose}>
@@ -138,6 +188,7 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
               setDayChangeStep(null);
               setRejoinStep(null);
               setWithdrawStep(null);
+              setHistoryEdit(null);
             }}
             style={{
               background: "none",
@@ -239,6 +290,9 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
               onClick={(ev) => ev.target.showPicker?.()}
               style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 14, outline: "none", background: C.surface, cursor: "pointer", boxSizing: "border-box" }}
             />
+            <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 6 }}>
+              기본값은 오늘이에요. 실제로 바뀐 날짜가 다르면 꼭 수정해주세요.
+            </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button
@@ -361,6 +415,90 @@ export function StudentModal({ student, onClose, onUpdate, onDelete, togglePayme
               ].filter(Boolean)}
             />
           </Section>
+
+          {showSessionHistory && (
+            <Section title="횟수 변경 이력">
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {sessionHistory.map((h, i) => {
+                  const isCurrent = i === sessionHistory.length - 1;
+                  const isEditingThis = historyEdit && historyEdit.id === h.id;
+                  return (
+                    <div
+                      key={h.id}
+                      style={{
+                        border: `1px solid ${isCurrent ? C.accent : C.border}`,
+                        borderRadius: 10,
+                        padding: "10px 12px",
+                        background: C.surface,
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, flex: 1 }}>
+                          {shortDate(h.effectiveFrom)}부터 {h.totalSessions}회
+                          {isCurrent && (
+                            <span style={{ marginLeft: 8, fontSize: 11, color: C.accent, fontWeight: 700 }}>현재 적용</span>
+                          )}
+                        </div>
+                        {!isEditingThis && (
+                          <>
+                            <button
+                              onClick={() => setHistoryEdit({ id: h.id, effectiveFrom: h.effectiveFrom })}
+                              style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 10px", fontSize: 12, color: C.inkMuted }}
+                            >
+                              날짜 수정
+                            </button>
+                            <button
+                              onClick={() => handleHistoryDelete(h)}
+                              disabled={sessionHistory.length <= 1}
+                              style={{
+                                background: "none",
+                                border: `1px solid ${C.border}`,
+                                borderRadius: 6,
+                                padding: "4px 10px",
+                                fontSize: 12,
+                                color: sessionHistory.length <= 1 ? C.border : C.accent,
+                              }}
+                            >
+                              삭제
+                            </button>
+                          </>
+                        )}
+                      </div>
+                      {isEditingThis && (
+                        <div style={{ marginTop: 10 }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: C.inkMuted, marginBottom: 6 }}>적용 시작일</div>
+                          <input
+                            type="date"
+                            value={historyEdit.effectiveFrom}
+                            onChange={(e) => setHistoryEdit((s) => ({ ...s, effectiveFrom: e.target.value }))}
+                            onClick={(ev) => ev.target.showPicker?.()}
+                            style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 14, outline: "none", background: C.surface, cursor: "pointer", boxSizing: "border-box" }}
+                          />
+                          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                            <button
+                              onClick={() => setHistoryEdit(null)}
+                              style={{ flex: 1, padding: "9px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.surface, fontWeight: 600, fontSize: 13 }}
+                            >
+                              취소
+                            </button>
+                            <button
+                              onClick={handleHistoryDateSave}
+                              style={{ flex: 1, padding: "9px", borderRadius: 8, border: "none", background: C.accent, color: "#fff", fontWeight: 700, fontSize: 13 }}
+                            >
+                              날짜 저장
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 8, lineHeight: 1.5 }}>
+                가장 늦은 날짜의 이력이 "현재 적용"이 됩니다. 출석 기록은 지워지지 않고, 회차 계산만 달라집니다.
+              </div>
+            </Section>
+          )}
 
           <Section title="연락처">
             <InfoGrid
