@@ -1,528 +1,568 @@
-// 학생 데이터 훅 — Supabase 연동 버전 (CRUD + 출석/납부 관리, 보강/반 구분/납부방법 지원)
-// ★ 회차(session) 계산은 "session_config_history" 이력 기반 구간 계산 방식 사용
-// ★ 요일(days) 계산도 "day_config_history" 이력 기반 구간 계산 방식 사용
-// ★ Supabase는 한 번에 최대 1000행만 돌려주므로, 모든 목록 조회는 fetchAll()로 페이지를 나눠 전부 가져온다.
-import { useState, useEffect, useCallback, useRef } from "react";
-import { supabase } from "../lib/supabase.js";
-import { fmtFullDate } from "../constants.js";
+// 학생 상세 모달 + 학생 추가 모달 컴포넌트
+import { useState } from "react";
+import { C, TODAY, fmtFullDate } from "../constants.js";
+import { BottomSheet, Section, InfoGrid, StudentForm } from "./ui.jsx";
 
-// 1000행 제한을 넘어도 전부 가져오는 조회 함수
-// orderCols: 페이지가 겹치거나 빠지지 않도록 항상 같은 순서로 정렬할 컬럼들
-async function fetchAll(table, orderCols) {
-  const PAGE_SIZE = 1000;
-  const all = [];
-  let from = 0;
+const BLANK_FORM = {
+  name: "", grade: "", phone: "", parentPhone: "",
+  registeredAt: fmtFullDate(TODAY),
+  type: "월정액", fee: 150000, totalSessions: 10,
+  days: [], memo: "", classType: "초등부", status: "active",
+};
 
-  while (true) {
-    let query = supabase.from(table).select("*");
-    orderCols.forEach((col) => {
-      query = query.order(col, { ascending: true });
-    });
-    const { data, error } = await query.range(from, from + PAGE_SIZE - 1);
-
-    if (error) {
-      console.error(`${table} 조회 실패:`, error);
-      return { data: all, error };
-    }
-
-    all.push(...(data || []));
-    if (!data || data.length < PAGE_SIZE) break;
-    from += PAGE_SIZE;
-  }
-
-  return { data: all, error: null };
+function sameDays(a, b) {
+  const sa = [...(a || [])].sort().join(",");
+  const sb = [...(b || [])].sort().join(",");
+  return sa === sb;
 }
 
-// DB(snake_case) 행을 앱에서 쓰는 형태(camelCase)로 변환
-function fromDbStudent(row) {
-  return {
-    id: row.id,
-    name: row.name,
-    grade: row.grade,
-    phone: row.phone,
-    parentPhone: row.parent_phone,
-    registeredAt: row.registered_at,
-    type: row.type,
-    fee: row.fee,
-    totalSessions: row.total_sessions,
-    days: row.days || [],
-    memo: row.memo,
-    classType: row.class_type,
-    status: row.status || "active",
-    activeFrom: row.active_from || null,
-    withdrawnAt: row.withdrawn_at || null,
-  };
+// "2026-09-11" → "9/11" (이력 목록 표시용)
+function shortDate(dateStr) {
+  if (!dateStr) return "-";
+  const [, m, d] = dateStr.split("-");
+  return `${Number(m)}/${Number(d)}`;
 }
 
-// 앱에서 쓰는 형태(camelCase)를 DB(snake_case)로 변환
-function toDbStudent(data) {
-  return {
-    name: data.name,
-    grade: data.grade,
-    phone: data.phone,
-    parent_phone: data.parentPhone,
-    registered_at: data.registeredAt,
-    type: data.type,
-    fee: data.fee,
-    total_sessions: data.totalSessions,
-    days: data.days,
-    memo: data.memo,
-    class_type: data.classType,
-    status: data.status || "active",
-  };
-}
+// ─── 학생 상세 모달 ────────────────────────────────────────
+// onSessionDelete / onSessionDateChange 는 선택 props — 넘기지 않으면 "횟수 변경 이력" 영역이 표시되지 않는다.
+export function StudentModal({
+  student, onClose, onUpdate, onDelete, togglePayment, setStudentStatus,
+  onSessionChange, onDayChange, onSessionDelete, onSessionDateChange,
+}) {
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState(student);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [sessionChangeStep, setSessionChangeStep] = useState(null); // { newTotalSessions, effectiveFrom }
+  const [dayChangeStep, setDayChangeStep] = useState(null); // { newDays, newClassType, effectiveFrom }
+  const [rejoinStep, setRejoinStep] = useState(null); // { activeFrom }
+  const [withdrawStep, setWithdrawStep] = useState(null); // { withdrawnAt }
+  const [historyEdit, setHistoryEdit] = useState(null); // { id, effectiveFrom } — 횟수 이력 적용일 수정 중인 항목
 
-// 학생의 회차 설정 이력(effective_from 오름차순)을 기준으로,
-// 출석 기록을 "구간"별로 나누고, 각 구간 안에서만 날짜순으로 회차 번호를 계산한다.
-// history: [{ effectiveFrom: "YYYY-MM-DD", totalSessions: N }, ...] (이미 오름차순 정렬된 상태로 전달됨)
-// attendanceDates: 그 학생의 출석된 날짜 문자열 배열 (makeup 포함, 정렬 전)
-// 출석일들을 회차 이력 구간(segment)별로 나눠서 묶는다. (배열 인덱스 = history 인덱스)
-// 이력의 effective_from보다 이전 날짜라도 마땅히 속할 구간이 없으면 첫 번째 구간에 포함시킨다(fallback).
-// ★ computeSessionNumbers와 computeCurrentCycleInfo가 반드시 이 함수 하나만 공유해서 써야
-//   "이 날짜가 어느 구간 소속인지" 판단이 두 곳에서 어긋나는 일이 없다.
-//   (실제로 이전에는 이 fallback 규칙이 한쪽에만 있고 다른 쪽엔 없어서,
-//    session_config_history 백필 데이터처럼 effective_from이 실제 출석일보다 늦게 기록된 경우
-//    "N회" 라벨과 "진행회차"가 서로 다른 값을 보여주는 버그가 있었음)
-function assignDatesToSegments(history, attendanceDates) {
-  const sortedDates = [...attendanceDates].sort();
-  const segmentBuckets = history.map(() => []);
+  const currentMonth = `${TODAY.getFullYear()}-${String(TODAY.getMonth() + 1).padStart(2, "0")}`;
+  const monthPayment = student.payments.find((p) => p.month === currentMonth);
+  const isPaid = monthPayment ? monthPayment.paid : false;
 
-  function findSegmentIndex(dateStr) {
-    let idx = 0;
-    for (let i = 0; i < history.length; i++) {
-      if (history[i].effectiveFrom <= dateStr) idx = i;
-      else break;
-    }
-    return idx;
-  }
+  // 진행회차/잔여/마감여부는 useStudents.js의 loadStudents()에서
+  // sessionNumbers(이력 기반 계산) 하나만을 근거로 이미 계산되어 내려온다.
+  // (예전에는 여기서 별도의 usedSessions 카운터로 다시 계산했는데,
+  //  결제 리셋 시점과 회차 이력 구간이 어긋나면 두 값이 서로 달라지는 문제가 있었음)
+  const isExhausted = student.isExhausted;
+  const remaining = student.remainingSessions;
+  const currentSessionNumber = student.currentSessionNumber;
 
-  sortedDates.forEach((dateStr) => {
-    segmentBuckets[findSegmentIndex(dateStr)].push(dateStr);
-  });
+  function handleSave() {
+    // 횟수 숫자가 바뀌었거나, 월정액→횟수제로 유형이 바뀌었거나, 횟수제인데 회차 이력이 아직 없으면
+    // 적용 시작일을 확인하고 회차 이력을 새로 만든다. (이력이 없으면 회차 계산이 전혀 안 됨)
+    const sessionsChanged =
+      form.type === "횟수제" &&
+      (Number(form.totalSessions) !== Number(student.totalSessions) ||
+        student.type !== "횟수제" ||
+        !(student.sessionHistory && student.sessionHistory.length > 0));
+    const daysChanged = !sameDays(form.days, student.days) || form.classType !== student.classType;
 
-  return segmentBuckets;
-}
-
-function computeSessionNumbers(history, attendanceDates) {
-  const result = {}; // { dateStr: sessionNumber }
-  if (!history || history.length === 0) return result;
-
-  const segmentBuckets = assignDatesToSegments(history, attendanceDates);
-
-  // 구간별로 순번 계산
-  segmentBuckets.forEach((dates, segIdx) => {
-    const total = history[segIdx].totalSessions;
-    dates.forEach((dateStr, i) => {
-      result[dateStr] = (i % total) + 1;
-    });
-  });
-
-  return result;
-}
-
-// "진행 회차 / 잔여 횟수 / 마감 여부"는 항상 "현재(=가장 마지막) 구간" 기준으로 계산한다.
-// 주의: sessionNumbers 전체에서 "가장 최근 출석일"을 그냥 가져오면 안 된다 —
-// 총 횟수를 방금 바꿔서 새 구간이 시작된 직후, 아직 그 구간에 출석 기록이 하나도 없다면
-// "가장 최근 출석일"은 여전히 예전 구간(예: 8회 기준)의 마지막 날짜를 가리키게 되어
-// 화면에 예전 회차 숫자가 그대로 남아있는 것처럼 보이는 버그가 있었음.
-// 그래서 여기서는 "현재 구간의 시작일(effectiveFrom) 이후" 출석만 세어서 계산한다.
-function computeCurrentCycleInfo(history, attendanceDates) {
-  if (!history || history.length === 0) {
-    return { currentSessionNumber: null, remainingSessions: null, isExhausted: false };
-  }
-  const lastIdx = history.length - 1;
-  const total = history[lastIdx].totalSessions;
-  const segmentBuckets = assignDatesToSegments(history, attendanceDates);
-  const datesInCurrentSegment = segmentBuckets[lastIdx];
-
-  if (!datesInCurrentSegment || datesInCurrentSegment.length === 0) {
-    // 현재(가장 마지막) 구간에 아직 출석 기록이 없음 → 처음부터 다시 시작
-    return { currentSessionNumber: null, remainingSessions: total, isExhausted: false };
-  }
-
-  const currentSessionNumber = ((datesInCurrentSegment.length - 1) % total) + 1;
-  return {
-    currentSessionNumber,
-    remainingSessions: Math.max(0, total - currentSessionNumber),
-    isExhausted: currentSessionNumber === total,
-  };
-}
-
-// 요일 변경 이력을 기준으로, 특정 날짜에 적용되던 수업 요일을 계산
-// history: [{ effectiveFrom, days }, ...] (오름차순 정렬됨)
-function computeDaysAt(history, dateStr, fallbackDays) {
-  if (!history || history.length === 0) return fallbackDays;
-  let applicable = null;
-  for (let i = 0; i < history.length; i++) {
-    if (history[i].effectiveFrom <= dateStr) applicable = history[i];
-    else break;
-  }
-  return applicable ? applicable.days : [];
-}
-
-export function useStudents() {
-  const [students, setStudents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const pendingToggles = useRef(new Set()); // 처리 중인 출석 토글 중복 클릭 방지
-
-  const loadStudents = useCallback(async () => {
-    setLoading(true);
-
-    const { data: studentRows, error } = await supabase
-      .from("students")
-      .select("*")
-      .order("id");
-
-    if (error) {
-      console.error("학생 목록 로드 실패:", error);
-      setLoading(false);
+    if (sessionsChanged) {
+      // 바로 저장하지 않고, 적용 시작일을 먼저 확인 (요일도 바뀌었으면 이어서 확인)
+      setSessionChangeStep({ newTotalSessions: Number(form.totalSessions), effectiveFrom: fmtFullDate(TODAY), thenDaysChanged: daysChanged });
       return;
     }
 
-    // ★ 전부 fetchAll로 조회 (기본 1000행 제한 때문에 출석 데이터가 잘리던 문제 수정)
-    const { data: attendanceRows } = await fetchAll("attendance", ["id"]);
-    const { data: paymentRows } = await fetchAll("payments", ["student_id", "month"]);
-    const { data: historyRows } = await fetchAll("session_config_history", ["effective_from", "id"]);
-    const { data: dayHistoryRows } = await fetchAll("day_config_history", ["effective_from", "id"]);
-
-    const merged = (studentRows || []).map((row) => {
-      const student = fromDbStudent(row);
-
-      const attendance = {};
-      const attendanceDates = [];
-      (attendanceRows || [])
-        .filter((a) => a.student_id === student.id)
-        .forEach((a) => {
-          attendance[a.date] = a.is_makeup ? "makeup" : true;
-          attendanceDates.push(a.date);
-        });
-
-      const history = (historyRows || [])
-        .filter((h) => h.student_id === student.id)
-        .map((h) => ({ id: h.id, effectiveFrom: h.effective_from, totalSessions: h.total_sessions, isBaseline: !!h.is_baseline }));
-
-      const dayHistory = (dayHistoryRows || [])
-        .filter((h) => h.student_id === student.id)
-        .map((h) => ({ id: h.id, effectiveFrom: h.effective_from, days: h.days || [], classType: h.class_type }));
-
-      const sessionNumbers = student.type === "횟수제" ? computeSessionNumbers(history, attendanceDates) : {};
-      const { currentSessionNumber, remainingSessions, isExhausted } =
-        student.type === "횟수제"
-          ? computeCurrentCycleInfo(history, attendanceDates)
-          : { currentSessionNumber: null, remainingSessions: null, isExhausted: false };
-
-      const payments = (paymentRows || [])
-        .filter((p) => p.student_id === student.id)
-        .map((p) => ({ month: p.month, paid: p.paid, paidAt: p.paid_at, method: p.method, amount: p.amount, note: p.note }));
-
-      return {
-        ...student, attendance, sessionNumbers, sessionHistory: history, dayHistory, payments,
-        currentSessionNumber, remainingSessions, isExhausted,
-      };
-    });
-
-    setStudents(merged);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { loadStudents(); }, [loadStudents]);
-
-  // 특정 학생의 특정 날짜 기준 수업 요일을 계산 (요일 변경 이력 반영)
-  function getDaysAt(student, dateStr) {
-    return computeDaysAt(student.dayHistory, dateStr, student.days);
-  }
-
-  // 출석 토글 — isMakeup이 true면 보강으로 기록.
-  // 회차 번호(N회)와 잔여/마감 여부는 별도로 저장하지 않고,
-  // loadStudents() 시점에 attendance 테이블 + 이력을 기준으로 항상 재계산되므로
-  // 순서·삭제·정정과 무관하게 항상 정확하고 서로 일치함.
-  async function toggleAttendance(studentId, dateStr, isMakeup = false) {
-    const key = `${studentId}`; // 학생 단위로 잠가서 다른 날짜 칸도 순차 처리되게 함
-    if (pendingToggles.current.has(key)) return; // 처리 중이면 중복 클릭 무시
-    pendingToggles.current.add(key);
-
-    try {
-      const student = students.find((s) => s.id === studentId);
-      if (!student) return;
-
-      const isAttending = !!student.attendance[dateStr];
-
-      if (isAttending) {
-        const { error } = await supabase
-          .from("attendance")
-          .delete()
-          .eq("student_id", studentId)
-          .eq("date", dateStr);
-        if (error) console.error("출석 해제 실패:", error);
-      } else {
-        // ★ insert 대신 upsert: 화면 상태와 DB가 어긋나 있어도 (student_id, date) 중복 오류 없이 저장됨
-        const { error } = await supabase
-          .from("attendance")
-          .upsert(
-            { student_id: studentId, date: dateStr, is_makeup: isMakeup },
-            { onConflict: "student_id,date" }
-          );
-        if (error) console.error("출석 저장 실패:", error);
-      }
-
-      await loadStudents();
-    } finally {
-      pendingToggles.current.delete(key);
+    if (daysChanged) {
+      setDayChangeStep({ newDays: form.days, newClassType: form.classType, effectiveFrom: fmtFullDate(TODAY) });
+      return;
     }
+
+    onUpdate(form);
+    setEditing(false);
   }
 
-  // 수강료 납부 토글 (기존 방식 — 상세 모달 등에서 사용)
-  async function togglePayment(studentId, month) {
-    const student = students.find((s) => s.id === studentId);
-    if (!student) return;
-
-    const existing = student.payments.find((p) => p.month === month);
-    const today = fmtFullDate(new Date());
-
-    if (!existing) {
-      await supabase.from("payments").insert({ student_id: studentId, month, paid: true, paid_at: today });
-    } else if (existing.paid) {
-      await supabase.from("payments").update({ paid: false, paid_at: null, method: null }).eq("student_id", studentId).eq("month", month);
+  function confirmSessionChange() {
+    if (!sessionChangeStep.effectiveFrom) {
+      alert("적용 시작일을 선택해주세요.");
+      return;
+    }
+    onUpdate(form);
+    onSessionChange(student.id, sessionChangeStep.newTotalSessions, sessionChangeStep.effectiveFrom);
+    const needsDayStep = sessionChangeStep.thenDaysChanged;
+    setSessionChangeStep(null);
+    if (needsDayStep) {
+      setDayChangeStep({ newDays: form.days, newClassType: form.classType, effectiveFrom: fmtFullDate(TODAY) });
     } else {
-      await supabase.from("payments").update({ paid: true, paid_at: today }).eq("student_id", studentId).eq("month", month);
+      setEditing(false);
     }
-
-    await loadStudents();
   }
 
-  // 수강료 납부 정보를 날짜/방법까지 직접 지정해서 저장 (1년 전체 보기 화면에서 사용)
-  async function setPayment(studentId, month, { paid, paidAt, method, amount, note }) {
-    const student = students.find((s) => s.id === studentId);
-    if (!student) return;
-    const existing = student.payments.find((p) => p.month === month);
-    if (!paid) {
-      await supabase.from("payments").delete().eq("student_id", studentId).eq("month", month);
-    } else if (existing) {
-      await supabase.from("payments").update({ paid: true, paid_at: paidAt, method, amount, note }).eq("student_id", studentId).eq("month", month);
-    } else {
-      await supabase.from("payments").insert({ student_id: studentId, month, paid: true, paid_at: paidAt, method, amount, note });
+  function confirmDayChange() {
+    if (!dayChangeStep.effectiveFrom) {
+      alert("적용 시작일을 선택해주세요.");
+      return;
     }
-    await loadStudents();
+    // 이력(day_config_history)만 쌓고 학생 레코드 자체(days/class_type)는 갱신하지 않던 버그 수정.
+    // 요일만 단독으로 바꿀 때는 onUpdate가 호출될 경로가 없어서, 상세화면에 보이는 "수업 요일"이
+    // 이력에는 새 값이 쌓였음에도 계속 예전 값으로 남아있었음.
+    onUpdate(form);
+    onDayChange(student.id, dayChangeStep.newDays, dayChangeStep.effectiveFrom, dayChangeStep.newClassType);
+    setDayChangeStep(null);
+    setEditing(false);
   }
 
-  // 학생 추가
-  async function addStudent(data) {
-    const { data: inserted, error } = await supabase.from("students").insert(toDbStudent(data)).select().single();
-    if (!error && inserted) {
-      if (data.type === "횟수제") {
-        // 신규 학생은 등록일부터 지정한 횟수로 회차 이력 1건 자동 생성
-        await supabase.from("session_config_history").insert({
-          student_id: inserted.id,
-          effective_from: data.registeredAt,
-          total_sessions: data.totalSessions,
-        });
-      }
-      // 신규 학생은 등록일부터 지정한 요일로 요일 이력 1건 자동 생성
-      await supabase.from("day_config_history").insert({
-        student_id: inserted.id,
-        effective_from: data.registeredAt,
-        days: data.days,
-        class_type: data.classType,
-      });
+  function handleDelete() {
+    onDelete(student.id);
+    onClose();
+  }
+
+  // 횟수 변경 이력 1건 삭제 (마지막 남은 1건은 삭제 불가 — useStudents.js에서 막음)
+  async function handleHistoryDelete(h) {
+    const ok = window.confirm(
+      `${h.effectiveFrom}부터 ${h.totalSessions}회 이력을 삭제할까요?\n출석 기록은 그대로 유지되고, 회차 계산만 달라집니다.`
+    );
+    if (!ok) return;
+    const res = await onSessionDelete(student.id, h.id);
+    if (res && !res.ok) {
+      alert(res.reason === "last" ? "마지막 남은 이력은 삭제할 수 없어요." : "삭제에 실패했어요. 잠시 후 다시 시도해주세요.");
     }
-    await loadStudents();
   }
 
-  // 학생 수정
-  async function updateStudent(updated) {
-    await supabase.from("students").update(toDbStudent(updated)).eq("id", updated.id);
-    await loadStudents();
-  }
-
-  // ★ 자동 "앞 구간" 만들기
-  // 앱은 "첫 이력의 시작일보다 앞선 출석"을 첫 구간에 합쳐서 센다.
-  // 그래서 월정액→횟수제 전환처럼 이력이 "지금부터" 한 건만 있으면, 예전 출석까지 이어서 세어
-  // 회차가 엉뚱하게(예: 8회) 나온다. 방금 저장/수정한 이력(effectiveFrom)이 그 학생의 "가장 첫 이력"이고
-  // 그보다 앞선 출석이 있으면, 이전 출석을 따로 받아줄 앞 구간 이력을 자동으로 하나 만든다.
-  // (이미 더 앞선 이력이 있는 학생은 건드리지 않는다)
-  async function ensureBaselineSessionHistory(studentId, effectiveFrom, totalSessions) {
-    const { data: earliest, error: e1 } = await supabase
-      .from("session_config_history")
-      .select("effective_from")
-      .eq("student_id", studentId)
-      .order("effective_from", { ascending: true })
-      .order("id", { ascending: true })
-      .limit(1);
-    if (e1 || !earliest || earliest.length === 0) return;
-    if (earliest[0].effective_from !== effectiveFrom) return; // 더 앞선 이력이 이미 있음
-
-    const { data: firstAtt, error: e2 } = await supabase
-      .from("attendance")
-      .select("date")
-      .eq("student_id", studentId)
-      .order("date", { ascending: true })
-      .limit(1);
-    if (e2 || !firstAtt || firstAtt.length === 0) return;
-    const firstAttDate = firstAtt[0].date;
-    if (firstAttDate >= effectiveFrom) return; // 앞선 출석 없음
-
-    // 앞 구간 시작일: 등록일(첫 출석보다 늦지 않을 때) 또는 첫 출석일
-    const { data: st } = await supabase
-      .from("students")
-      .select("registered_at")
-      .eq("id", studentId)
-      .single();
-    let baseDate = st && st.registered_at ? st.registered_at : firstAttDate;
-    if (baseDate > firstAttDate || baseDate >= effectiveFrom) baseDate = firstAttDate;
-
-    const { error } = await supabase.from("session_config_history").insert({
-      student_id: studentId,
-      effective_from: baseDate,
-      total_sessions: totalSessions,
-      is_baseline: true, // 화면의 이력 목록에서는 숨김 (계산에만 사용)
-    });
-    if (error) console.error("앞 구간 이력 자동 생성 실패:", error);
-  }
-
-  // 회차(횟수) 변경 이력 추가 — 특정 날짜부터 새 총 횟수를 적용
-  // ★ 같은 학생 + 같은 적용일 이력이 이미 있으면 새로 쌓지 않고 덮어쓴다 (이력 중복 방지)
-  async function addSessionConfigChange(studentId, newTotalSessions, effectiveFrom) {
-    const { data: existing, error: findError } = await supabase
-      .from("session_config_history")
-      .select("id")
-      .eq("student_id", studentId)
-      .eq("effective_from", effectiveFrom)
-      .order("id", { ascending: false })
-      .limit(1);
-    if (findError) console.error("회차 이력 조회 실패:", findError);
-
-    if (existing && existing.length > 0) {
-      const { error } = await supabase
-        .from("session_config_history")
-        .update({ total_sessions: newTotalSessions })
-        .eq("id", existing[0].id);
-      if (error) console.error("회차 이력 수정 실패:", error);
-    } else {
-      const { error } = await supabase.from("session_config_history").insert({
-        student_id: studentId,
-        effective_from: effectiveFrom,
-        total_sessions: newTotalSessions,
-      });
-      if (error) console.error("회차 이력 추가 실패:", error);
+  // 횟수 변경 이력의 적용 시작일만 수정 (총 횟수는 그대로)
+  async function handleHistoryDateSave() {
+    if (!historyEdit.effectiveFrom) {
+      alert("적용 시작일을 선택해주세요.");
+      return;
     }
-    await ensureBaselineSessionHistory(studentId, effectiveFrom, newTotalSessions);
-    await loadStudents();
+    const res = await onSessionDateChange(student.id, historyEdit.id, historyEdit.effectiveFrom);
+    if (res && !res.ok) {
+      alert(res.reason === "duplicate" ? "그 날짜에 이미 다른 횟수 이력이 있어요. 먼저 그 이력을 삭제하거나 다른 날짜를 선택해주세요." : "수정에 실패했어요. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+    setHistoryEdit(null);
   }
 
-  // 회차(횟수) 변경 이력 삭제 — 학생에게 남은 마지막 이력 1건은 지울 수 없다
-  async function deleteSessionConfigChange(studentId, historyId) {
-    const { count, error: countError } = await supabase
-      .from("session_config_history")
-      .select("id", { count: "exact", head: true })
-      .eq("student_id", studentId)
-      .eq("is_baseline", false); // 숨겨진 앞 구간 이력은 제외하고, 눈에 보이는 이력이 1건 남으면 삭제 불가
-    if (countError) {
-      console.error("회차 이력 개수 확인 실패:", countError);
-      return { ok: false, reason: "error" };
-    }
-    if ((count || 0) <= 1) return { ok: false, reason: "last" };
+  // 자동으로 만들어진 "앞 구간" 이력(isBaseline)은 계산용이라 화면에서 숨긴다
+  const sessionHistory = (student.sessionHistory || []).filter((h) => !h.isBaseline);
+  const showSessionHistory =
+    student.type === "횟수제" && sessionHistory.length > 0 && onSessionDelete && onSessionDateChange;
 
-    const { error } = await supabase
-      .from("session_config_history")
-      .delete()
-      .eq("id", historyId)
-      .eq("student_id", studentId);
-    if (error) {
-      console.error("회차 이력 삭제 실패:", error);
-      return { ok: false, reason: "error" };
+  return (
+    <BottomSheet onClose={onClose}>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
+        <div
+          style={{
+            width: 52,
+            height: 52,
+            borderRadius: "50%",
+            background: C.accentLight,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontWeight: 700,
+            fontSize: 22,
+            color: C.accent,
+            flexShrink: 0,
+          }}
+        >
+          {student.name[0]}
+        </div>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 20 }}>{student.name}</div>
+          <div style={{ fontSize: 13, color: C.inkMuted }}>
+            {student.classType} · {student.grade} · 등록일 {student.registeredAt}
+          </div>
+        </div>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+          <button
+            onClick={() => {
+              if (student.status === "withdrawn") {
+                setRejoinStep({ activeFrom: fmtFullDate(TODAY) });
+              } else {
+                setWithdrawStep({ withdrawnAt: fmtFullDate(TODAY) });
+              }
+            }}
+            style={{
+              background: "none",
+              border: `1px solid ${student.status === "withdrawn" ? C.green : C.border}`,
+              borderRadius: 8,
+              padding: "6px 12px",
+              fontSize: 13,
+              color: student.status === "withdrawn" ? C.green : C.inkMuted,
+            }}
+          >
+            {student.status === "withdrawn" ? "🔄 재원처리" : "🚪 퇴원처리"}
+          </button>
+          <button
+            onClick={() => {
+              setEditing(!editing);
+              setForm(student);
+              setSessionChangeStep(null);
+              setDayChangeStep(null);
+              setRejoinStep(null);
+              setWithdrawStep(null);
+              setHistoryEdit(null);
+            }}
+            style={{
+              background: "none",
+              border: `1px solid ${C.border}`,
+              borderRadius: 8,
+              padding: "6px 12px",
+              fontSize: 13,
+              color: C.inkMuted,
+            }}
+          >
+            {editing ? "취소" : "✏️ 수정"}
+          </button>
+        </div>
+      </div>
+
+      {withdrawStep ? (
+        <div style={{ background: C.accentLight, borderRadius: 10, padding: "16px", marginBottom: 12 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6, color: C.accent }}>
+            퇴원 처리
+          </div>
+          <div style={{ fontSize: 13, color: C.ink, marginBottom: 14, lineHeight: 1.5 }}>
+            아래 날짜까지의 출석 기록은 달력에 그대로 남고,<br />
+            그 다음 날부터는 출석부에 표시되지 않습니다.
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.inkMuted, marginBottom: 6 }}>퇴원일</div>
+            <input
+              type="date"
+              value={withdrawStep.withdrawnAt}
+              onChange={(e) => setWithdrawStep((s) => ({ ...s, withdrawnAt: e.target.value }))}
+              onClick={(ev) => ev.target.showPicker?.()}
+              style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 14, outline: "none", background: C.surface, cursor: "pointer", boxSizing: "border-box" }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => setWithdrawStep(null)}
+              style={{ flex: 1, padding: "11px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.surface, fontWeight: 600, fontSize: 14 }}
+            >
+              취소
+            </button>
+            <button
+              onClick={() => { setStudentStatus(student.id, "withdrawn", withdrawStep.withdrawnAt); setWithdrawStep(null); }}
+              style={{ flex: 1, padding: "11px", borderRadius: 8, border: "none", background: C.accent, color: "#fff", fontWeight: 700, fontSize: 14 }}
+            >
+              퇴원 처리
+            </button>
+          </div>
+        </div>
+      ) : rejoinStep ? (
+        <div style={{ background: C.greenLight, borderRadius: 10, padding: "16px", marginBottom: 12 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6, color: C.green }}>
+            재원 처리
+          </div>
+          <div style={{ fontSize: 13, color: C.ink, marginBottom: 14, lineHeight: 1.5 }}>
+            아래 날짜부터 출석부에 다시 표시됩니다.<br />
+            그 이전 기간은 결석으로 표시되지 않습니다.
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.inkMuted, marginBottom: 6 }}>재원 시작일</div>
+            <input
+              type="date"
+              value={rejoinStep.activeFrom}
+              onChange={(e) => setRejoinStep((s) => ({ ...s, activeFrom: e.target.value }))}
+              onClick={(ev) => ev.target.showPicker?.()}
+              style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 14, outline: "none", background: C.surface, cursor: "pointer", boxSizing: "border-box" }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => setRejoinStep(null)}
+              style={{ flex: 1, padding: "11px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.surface, fontWeight: 600, fontSize: 14 }}
+            >
+              취소
+            </button>
+            <button
+              onClick={() => { setStudentStatus(student.id, "active", rejoinStep.activeFrom); setRejoinStep(null); }}
+              style={{ flex: 1, padding: "11px", borderRadius: 8, border: "none", background: C.green, color: "#fff", fontWeight: 700, fontSize: 14 }}
+            >
+              재원 처리
+            </button>
+          </div>
+        </div>
+      ) : sessionChangeStep ? (
+        <div style={{ background: C.accentLight, borderRadius: 10, padding: "16px", marginBottom: 12 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6, color: C.accent }}>
+            횟수 변경 확인
+          </div>
+          <div style={{ fontSize: 13, color: C.ink, marginBottom: 14, lineHeight: 1.5 }}>
+            <b>{student.totalSessions}회</b> → <b>{sessionChangeStep.newTotalSessions}회</b>로 변경합니다.<br />
+            아래 날짜부터 새 횟수가 적용되며, 그 이전 출석 기록의 회차는 그대로 유지됩니다.
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.inkMuted, marginBottom: 6 }}>적용 시작일</div>
+            <input
+              type="date"
+              value={sessionChangeStep.effectiveFrom}
+              onChange={(e) => setSessionChangeStep((s) => ({ ...s, effectiveFrom: e.target.value }))}
+              onClick={(ev) => ev.target.showPicker?.()}
+              style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 14, outline: "none", background: C.surface, cursor: "pointer", boxSizing: "border-box" }}
+            />
+            <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 6 }}>
+              기본값은 오늘이에요. 실제로 바뀐 날짜가 다르면 꼭 수정해주세요.
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => setSessionChangeStep(null)}
+              style={{ flex: 1, padding: "11px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.surface, fontWeight: 600, fontSize: 14 }}
+            >
+              취소
+            </button>
+            <button
+              onClick={confirmSessionChange}
+              style={{ flex: 1, padding: "11px", borderRadius: 8, border: "none", background: C.accent, color: "#fff", fontWeight: 700, fontSize: 14 }}
+            >
+              이 날짜부터 적용
+            </button>
+          </div>
+        </div>
+      ) : dayChangeStep ? (
+        <div style={{ background: C.blueLight, borderRadius: 10, padding: "16px", marginBottom: 12 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6, color: C.blue }}>
+            수업 요일 변경 확인
+          </div>
+          <div style={{ fontSize: 13, color: C.ink, marginBottom: 14, lineHeight: 1.5 }}>
+            <b>{student.days.join(", ") || "-"}</b> → <b>{dayChangeStep.newDays.join(", ") || "-"}</b>로 변경합니다.<br />
+            아래 날짜부터 새 요일이 적용되며, 그 이전 출석부 기록은 그대로 유지됩니다.
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.inkMuted, marginBottom: 6 }}>적용 시작일</div>
+            <input
+              type="date"
+              value={dayChangeStep.effectiveFrom}
+              onChange={(e) => setDayChangeStep((s) => ({ ...s, effectiveFrom: e.target.value }))}
+              onClick={(ev) => ev.target.showPicker?.()}
+              style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 14, outline: "none", background: C.surface, cursor: "pointer", boxSizing: "border-box" }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => { setDayChangeStep(null); setEditing(false); }}
+              style={{ flex: 1, padding: "11px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.surface, fontWeight: 600, fontSize: 14 }}
+            >
+              취소
+            </button>
+            <button
+              onClick={confirmDayChange}
+              style={{ flex: 1, padding: "11px", borderRadius: 8, border: "none", background: C.blue, color: "#fff", fontWeight: 700, fontSize: 14 }}
+            >
+              이 날짜부터 적용
+            </button>
+          </div>
+        </div>
+      ) : editing ? (
+        <>
+          <StudentForm form={form} setForm={setForm} onSubmit={handleSave} submitLabel="저장" />
+
+          {/* 횟수 변경 이력은 수정 모드에서만 표시 (실수로 누르는 것 방지) */}
+          {showSessionHistory && (
+            <Section title="횟수 변경 이력">
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {sessionHistory.map((h, i) => {
+                  const isCurrent = i === sessionHistory.length - 1;
+                  const isEditingThis = historyEdit && historyEdit.id === h.id;
+                  return (
+                    <div
+                      key={h.id}
+                      style={{
+                        border: `1px solid ${isCurrent ? C.accent : C.border}`,
+                        borderRadius: 10,
+                        padding: "10px 12px",
+                        background: C.surface,
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, flex: 1 }}>
+                          {shortDate(h.effectiveFrom)}부터 {h.totalSessions}회
+                          {isCurrent && (
+                            <span style={{ marginLeft: 8, fontSize: 11, color: C.accent, fontWeight: 700 }}>현재 적용</span>
+                          )}
+                        </div>
+                        {!isEditingThis && (
+                          <>
+                            <button
+                              onClick={() => setHistoryEdit({ id: h.id, effectiveFrom: h.effectiveFrom })}
+                              style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 10px", fontSize: 12, color: C.inkMuted }}
+                            >
+                              날짜 수정
+                            </button>
+                            <button
+                              onClick={() => handleHistoryDelete(h)}
+                              disabled={sessionHistory.length <= 1}
+                              style={{
+                                background: "none",
+                                border: `1px solid ${C.border}`,
+                                borderRadius: 6,
+                                padding: "4px 10px",
+                                fontSize: 12,
+                                color: sessionHistory.length <= 1 ? C.border : C.accent,
+                              }}
+                            >
+                              삭제
+                            </button>
+                          </>
+                        )}
+                      </div>
+                      {isEditingThis && (
+                        <div style={{ marginTop: 10 }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: C.inkMuted, marginBottom: 6 }}>적용 시작일</div>
+                          <input
+                            type="date"
+                            value={historyEdit.effectiveFrom}
+                            onChange={(e) => setHistoryEdit((s) => ({ ...s, effectiveFrom: e.target.value }))}
+                            onClick={(ev) => ev.target.showPicker?.()}
+                            style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 14, outline: "none", background: C.surface, cursor: "pointer", boxSizing: "border-box" }}
+                          />
+                          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                            <button
+                              onClick={() => setHistoryEdit(null)}
+                              style={{ flex: 1, padding: "9px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.surface, fontWeight: 600, fontSize: 13 }}
+                            >
+                              취소
+                            </button>
+                            <button
+                              onClick={handleHistoryDateSave}
+                              style={{ flex: 1, padding: "9px", borderRadius: 8, border: "none", background: C.accent, color: "#fff", fontWeight: 700, fontSize: 13 }}
+                            >
+                              날짜 저장
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 8, lineHeight: 1.5 }}>
+                가장 늦은 날짜의 이력이 "현재 적용"이 됩니다. 출석 기록은 지워지지 않고, 회차 계산만 달라집니다.
+              </div>
+            </Section>
+          )}
+          <div style={{ marginTop: 12 }}>
+            {!confirmDelete ? (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                style={{
+                  width: "100%",
+                  padding: "11px",
+                  borderRadius: 10,
+                  border: `1px solid ${C.accent}`,
+                  background: "none",
+                  color: C.accent,
+                  fontWeight: 600,
+                  fontSize: 14,
+                }}
+              >
+                🗑️ 학생 삭제
+              </button>
+            ) : (
+              <div style={{ background: C.accentLight, borderRadius: 10, padding: "14px 16px", textAlign: "center" }}>
+                <div style={{ fontWeight: 600, marginBottom: 10, color: C.accent }}>정말 삭제하시겠어요?</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    style={{
+                      flex: 1,
+                      padding: "9px",
+                      borderRadius: 8,
+                      border: `1px solid ${C.border}`,
+                      background: C.surface,
+                      fontWeight: 600,
+                      fontSize: 14,
+                    }}
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    style={{
+                      flex: 1,
+                      padding: "9px",
+                      borderRadius: 8,
+                      border: "none",
+                      background: C.accent,
+                      color: "#fff",
+                      fontWeight: 700,
+                      fontSize: 14,
+                    }}
+                  >
+                    삭제
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          <Section title="수강 정보">
+            <InfoGrid
+              items={[
+                { label: "수강 유형", value: student.type },
+                { label: "수강료", value: `${student.fee.toLocaleString()}원` },
+                { label: "수업 요일", value: student.days.join(", ") },
+                student.type === "횟수제"
+                  ? { label: "진행회차", value: `${currentSessionNumber ?? 0}회 / ${student.totalSessions}회` }
+                  : null,
+              ].filter(Boolean)}
+            />
+          </Section>
+
+          <Section title="연락처">
+            <InfoGrid
+              items={[
+                { label: "연락처", value: student.phone || "-" },
+                { label: "학부모 연락처", value: student.parentPhone || "-" },
+                { label: "메모", value: student.memo || "-" },
+              ]}
+            />
+          </Section>
+
+          <Section title="이번달 수강료">
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 16 }}>{student.fee.toLocaleString()}원</div>
+                {isPaid && <div style={{ fontSize: 12, color: C.green }}>납부일: {monthPayment.paidAt}</div>}
+              </div>
+              <button
+                onClick={() => togglePayment(student.id, currentMonth)}
+                style={{
+                  padding: "9px 16px",
+                  borderRadius: 8,
+                  border: "none",
+                  background: isPaid ? C.greenLight : C.accent,
+                  color: isPaid ? C.green : "#fff",
+                  fontWeight: 600,
+                  fontSize: 14,
+                }}
+              >
+                {isPaid ? "✅ 납부 완료" : "납부 처리"}
+              </button>
+            </div>
+          </Section>
+        </>
+      )}
+    </BottomSheet>
+  );
+}
+
+// ─── 학생 추가 모달 ────────────────────────────────────────
+export function AddStudentModal({ onClose, onAdd }) {
+  const [form, setForm] = useState(BLANK_FORM);
+
+  function handleAdd() {
+    if (!form.name.trim()) {
+      alert("이름을 입력해주세요.");
+      return;
     }
-    await loadStudents();
-    return { ok: true };
+    onAdd(form);
+    onClose();
   }
 
-  // 회차(횟수) 변경 이력의 "적용 시작일"만 수정 — 총 횟수는 그대로 둔다
-  // 같은 학생에게 이미 그 날짜의 다른 이력이 있으면 합쳐지지 않도록 막는다.
-  async function updateSessionConfigDate(studentId, historyId, newEffectiveFrom) {
-    const { data: sameDate, error: findError } = await supabase
-      .from("session_config_history")
-      .select("id")
-      .eq("student_id", studentId)
-      .eq("effective_from", newEffectiveFrom)
-      .neq("id", historyId)
-      .limit(1);
-    if (findError) {
-      console.error("회차 이력 조회 실패:", findError);
-      return { ok: false, reason: "error" };
-    }
-    if (sameDate && sameDate.length > 0) return { ok: false, reason: "duplicate" };
-
-    const { error } = await supabase
-      .from("session_config_history")
-      .update({ effective_from: newEffectiveFrom })
-      .eq("id", historyId)
-      .eq("student_id", studentId);
-    if (error) {
-      console.error("회차 이력 날짜 수정 실패:", error);
-      return { ok: false, reason: "error" };
-    }
-    // 날짜를 늦춰서 이 이력이 첫 이력이 되고 앞선 출석이 생기면, 앞 구간을 자동으로 만든다
-    const { data: edited } = await supabase
-      .from("session_config_history")
-      .select("total_sessions")
-      .eq("id", historyId)
-      .single();
-    if (edited) await ensureBaselineSessionHistory(studentId, newEffectiveFrom, edited.total_sessions);
-    await loadStudents();
-    return { ok: true };
-  }
-
-  // 요일 변경 이력 추가 — 특정 날짜부터 새 요일(및 반 구분)을 적용
-  // ★ 같은 학생 + 같은 적용일 이력이 이미 있으면 새로 쌓지 않고 덮어쓴다 (이력 중복 방지)
-  async function addDayConfigChange(studentId, newDays, effectiveFrom, classType) {
-    const { data: existing, error: findError } = await supabase
-      .from("day_config_history")
-      .select("id")
-      .eq("student_id", studentId)
-      .eq("effective_from", effectiveFrom)
-      .order("id", { ascending: false })
-      .limit(1);
-    if (findError) console.error("요일 이력 조회 실패:", findError);
-
-    if (existing && existing.length > 0) {
-      const { error } = await supabase
-        .from("day_config_history")
-        .update({ days: newDays, class_type: classType })
-        .eq("id", existing[0].id);
-      if (error) console.error("요일 이력 수정 실패:", error);
-    } else {
-      const { error } = await supabase.from("day_config_history").insert({
-        student_id: studentId,
-        effective_from: effectiveFrom,
-        days: newDays,
-        class_type: classType,
-      });
-      if (error) console.error("요일 이력 추가 실패:", error);
-    }
-    await loadStudents();
-  }
-
-  // 학생 삭제
-  async function deleteStudent(studentId) {
-    await supabase.from("students").delete().eq("id", studentId);
-    await loadStudents();
-  }
-
-  // 퇴원/재원 처리 (재원 처리 시 재원 시작일을 함께 저장)
-  async function setStudentStatus(studentId, status, dateValue = null) {
-    const update = { status };
-    if (status === "active") {
-      update.active_from = dateValue || fmtFullDate(new Date());
-    } else if (status === "withdrawn") {
-      update.withdrawn_at = dateValue || fmtFullDate(new Date());
-    }
-    await supabase.from("students").update(update).eq("id", studentId);
-    await loadStudents();
-  }
-
-  return {
-    students, loading, toggleAttendance, togglePayment, setPayment,
-    addStudent, updateStudent, deleteStudent, setStudentStatus,
-    addSessionConfigChange, deleteSessionConfigChange, updateSessionConfigDate,
-    addDayConfigChange, getDaysAt,
-  };
+  return (
+    <BottomSheet onClose={onClose}>
+      <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 20 }}>새 학생 등록</div>
+      <StudentForm form={form} setForm={setForm} onSubmit={handleAdd} submitLabel="등록 완료" />
+    </BottomSheet>
+  );
 }
