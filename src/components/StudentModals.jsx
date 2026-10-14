@@ -346,76 +346,8 @@ export function StudentModal({
       ) : editing ? (
         <>
           <StudentForm form={form} setForm={setForm} onSubmit={handleSave} submitLabel="저장" />
-          <div style={{ marginTop: 12 }}>
-            {!confirmDelete ? (
-              <button
-                onClick={() => setConfirmDelete(true)}
-                style={{
-                  width: "100%",
-                  padding: "11px",
-                  borderRadius: 10,
-                  border: `1px solid ${C.accent}`,
-                  background: "none",
-                  color: C.accent,
-                  fontWeight: 600,
-                  fontSize: 14,
-                }}
-              >
-                🗑️ 학생 삭제
-              </button>
-            ) : (
-              <div style={{ background: C.accentLight, borderRadius: 10, padding: "14px 16px", textAlign: "center" }}>
-                <div style={{ fontWeight: 600, marginBottom: 10, color: C.accent }}>정말 삭제하시겠어요?</div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button
-                    onClick={() => setConfirmDelete(false)}
-                    style={{
-                      flex: 1,
-                      padding: "9px",
-                      borderRadius: 8,
-                      border: `1px solid ${C.border}`,
-                      background: C.surface,
-                      fontWeight: 600,
-                      fontSize: 14,
-                    }}
-                  >
-                    취소
-                  </button>
-                  <button
-                    onClick={handleDelete}
-                    style={{
-                      flex: 1,
-                      padding: "9px",
-                      borderRadius: 8,
-                      border: "none",
-                      background: C.accent,
-                      color: "#fff",
-                      fontWeight: 700,
-                      fontSize: 14,
-                    }}
-                  >
-                    삭제
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </>
-      ) : (
-        <>
-          <Section title="수강 정보">
-            <InfoGrid
-              items={[
-                { label: "수강 유형", value: student.type },
-                { label: "수강료", value: `${student.fee.toLocaleString()}원` },
-                { label: "수업 요일", value: student.days.join(", ") },
-                student.type === "횟수제"
-                  ? { label: "진행회차", value: `${currentSessionNumber ?? 0}회 / ${student.totalSessions}회` }
-                  : null,
-              ].filter(Boolean)}
-            />
-          </Section>
 
+          {/* 횟수 변경 이력은 수정 모드에서만 표시 (실수로 누르는 것 방지) */}
           {showSessionHistory && (
             <Section title="횟수 변경 이력">
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -499,6 +431,75 @@ export function StudentModal({
               </div>
             </Section>
           )}
+          <div style={{ marginTop: 12 }}>
+            {!confirmDelete ? (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                style={{
+                  width: "100%",
+                  padding: "11px",
+                  borderRadius: 10,
+                  border: `1px solid ${C.accent}`,
+                  background: "none",
+                  color: C.accent,
+                  fontWeight: 600,
+                  fontSize: 14,
+                }}
+              >
+                🗑️ 학생 삭제
+              </button>
+            ) : (
+              <div style={{ background: C.accentLight, borderRadius: 10, padding: "14px 16px", textAlign: "center" }}>
+                <div style={{ fontWeight: 600, marginBottom: 10, color: C.accent }}>정말 삭제하시겠어요?</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    style={{
+                      flex: 1,
+                      padding: "9px",
+                      borderRadius: 8,
+                      border: `1px solid ${C.border}`,
+                      background: C.surface,
+                      fontWeight: 600,
+                      fontSize: 14,
+                    }}
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    style={{
+                      flex: 1,
+                      padding: "9px",
+                      borderRadius: 8,
+                      border: "none",
+                      background: C.accent,
+                      color: "#fff",
+                      fontWeight: 700,
+                      fontSize: 14,
+                    }}
+                  >
+                    삭제
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          <Section title="수강 정보">
+            <InfoGrid
+              items={[
+                { label: "수강 유형", value: student.type },
+                { label: "수강료", value: `${student.fee.toLocaleString()}원` },
+                { label: "수업 요일", value: student.days.join(", ") },
+                student.type === "횟수제"
+                  ? { label: "진행회차", value: `${currentSessionNumber ?? 0}회 / ${student.totalSessions}회` }
+                  : null,
+              ].filter(Boolean)}
+            />
+          </Section>
 
           <Section title="연락처">
             <InfoGrid
