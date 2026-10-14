@@ -334,6 +334,50 @@ export function useStudents() {
     await loadStudents();
   }
 
+  // ★ 자동 "앞 구간" 만들기
+  // 앱은 "첫 이력의 시작일보다 앞선 출석"을 첫 구간에 합쳐서 센다.
+  // 그래서 월정액→횟수제 전환처럼 이력이 "지금부터" 한 건만 있으면, 예전 출석까지 이어서 세어
+  // 회차가 엉뚱하게(예: 8회) 나온다. 방금 저장/수정한 이력(effectiveFrom)이 그 학생의 "가장 첫 이력"이고
+  // 그보다 앞선 출석이 있으면, 이전 출석을 따로 받아줄 앞 구간 이력을 자동으로 하나 만든다.
+  // (이미 더 앞선 이력이 있는 학생은 건드리지 않는다)
+  async function ensureBaselineSessionHistory(studentId, effectiveFrom, totalSessions) {
+    const { data: earliest, error: e1 } = await supabase
+      .from("session_config_history")
+      .select("effective_from")
+      .eq("student_id", studentId)
+      .order("effective_from", { ascending: true })
+      .order("id", { ascending: true })
+      .limit(1);
+    if (e1 || !earliest || earliest.length === 0) return;
+    if (earliest[0].effective_from !== effectiveFrom) return; // 더 앞선 이력이 이미 있음
+
+    const { data: firstAtt, error: e2 } = await supabase
+      .from("attendance")
+      .select("date")
+      .eq("student_id", studentId)
+      .order("date", { ascending: true })
+      .limit(1);
+    if (e2 || !firstAtt || firstAtt.length === 0) return;
+    const firstAttDate = firstAtt[0].date;
+    if (firstAttDate >= effectiveFrom) return; // 앞선 출석 없음
+
+    // 앞 구간 시작일: 등록일(첫 출석보다 늦지 않을 때) 또는 첫 출석일
+    const { data: st } = await supabase
+      .from("students")
+      .select("registered_at")
+      .eq("id", studentId)
+      .single();
+    let baseDate = st && st.registered_at ? st.registered_at : firstAttDate;
+    if (baseDate > firstAttDate || baseDate >= effectiveFrom) baseDate = firstAttDate;
+
+    const { error } = await supabase.from("session_config_history").insert({
+      student_id: studentId,
+      effective_from: baseDate,
+      total_sessions: totalSessions,
+    });
+    if (error) console.error("앞 구간 이력 자동 생성 실패:", error);
+  }
+
   // 회차(횟수) 변경 이력 추가 — 특정 날짜부터 새 총 횟수를 적용
   // ★ 같은 학생 + 같은 적용일 이력이 이미 있으면 새로 쌓지 않고 덮어쓴다 (이력 중복 방지)
   async function addSessionConfigChange(studentId, newTotalSessions, effectiveFrom) {
@@ -360,6 +404,7 @@ export function useStudents() {
       });
       if (error) console.error("회차 이력 추가 실패:", error);
     }
+    await ensureBaselineSessionHistory(studentId, effectiveFrom, newTotalSessions);
     await loadStudents();
   }
 
@@ -413,6 +458,13 @@ export function useStudents() {
       console.error("회차 이력 날짜 수정 실패:", error);
       return { ok: false, reason: "error" };
     }
+    // 날짜를 늦춰서 이 이력이 첫 이력이 되고 앞선 출석이 생기면, 앞 구간을 자동으로 만든다
+    const { data: edited } = await supabase
+      .from("session_config_history")
+      .select("total_sessions")
+      .eq("id", historyId)
+      .single();
+    if (edited) await ensureBaselineSessionHistory(studentId, newEffectiveFrom, edited.total_sessions);
     await loadStudents();
     return { ok: true };
   }
