@@ -2,8 +2,6 @@
 // ★ 회차(session) 계산은 "session_config_history" 이력 기반 구간 계산 방식 사용
 // ★ 요일(days) 계산도 "day_config_history" 이력 기반 구간 계산 방식 사용
 // ★ Supabase는 한 번에 최대 1000행만 돌려주므로, 모든 목록 조회는 fetchAll()로 페이지를 나눠 전부 가져온다.
-// ★ 같은 학생+같은 날짜의 이력이 여러 개여도 항상 "가장 나중에 저장된 것(id가 큰 것)"이 적용되도록 정렬 기준에 id를 포함한다.
-// ★ 같은 날짜로 횟수/요일 변경을 다시 저장하면 새 행을 쌓지 않고 기존 행을 덮어쓴다(이력 중복 방지).
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabase.js";
 import { fmtFullDate } from "../constants.js";
@@ -74,10 +72,17 @@ function toDbStudent(data) {
   };
 }
 
+// 학생의 회차 설정 이력(effective_from 오름차순)을 기준으로,
+// 출석 기록을 "구간"별로 나누고, 각 구간 안에서만 날짜순으로 회차 번호를 계산한다.
+// history: [{ effectiveFrom: "YYYY-MM-DD", totalSessions: N }, ...] (이미 오름차순 정렬된 상태로 전달됨)
+// attendanceDates: 그 학생의 출석된 날짜 문자열 배열 (makeup 포함, 정렬 전)
 // 출석일들을 회차 이력 구간(segment)별로 나눠서 묶는다. (배열 인덱스 = history 인덱스)
 // 이력의 effective_from보다 이전 날짜라도 마땅히 속할 구간이 없으면 첫 번째 구간에 포함시킨다(fallback).
 // ★ computeSessionNumbers와 computeCurrentCycleInfo가 반드시 이 함수 하나만 공유해서 써야
 //   "이 날짜가 어느 구간 소속인지" 판단이 두 곳에서 어긋나는 일이 없다.
+//   (실제로 이전에는 이 fallback 규칙이 한쪽에만 있고 다른 쪽엔 없어서,
+//    session_config_history 백필 데이터처럼 effective_from이 실제 출석일보다 늦게 기록된 경우
+//    "N회" 라벨과 "진행회차"가 서로 다른 값을 보여주는 버그가 있었음)
 function assignDatesToSegments(history, attendanceDates) {
   const sortedDates = [...attendanceDates].sort();
   const segmentBuckets = history.map(() => []);
@@ -116,6 +121,11 @@ function computeSessionNumbers(history, attendanceDates) {
 }
 
 // "진행 회차 / 잔여 횟수 / 마감 여부"는 항상 "현재(=가장 마지막) 구간" 기준으로 계산한다.
+// 주의: sessionNumbers 전체에서 "가장 최근 출석일"을 그냥 가져오면 안 된다 —
+// 총 횟수를 방금 바꿔서 새 구간이 시작된 직후, 아직 그 구간에 출석 기록이 하나도 없다면
+// "가장 최근 출석일"은 여전히 예전 구간(예: 8회 기준)의 마지막 날짜를 가리키게 되어
+// 화면에 예전 회차 숫자가 그대로 남아있는 것처럼 보이는 버그가 있었음.
+// 그래서 여기서는 "현재 구간의 시작일(effectiveFrom) 이후" 출석만 세어서 계산한다.
 function computeCurrentCycleInfo(history, attendanceDates) {
   if (!history || history.length === 0) {
     return { currentSessionNumber: null, remainingSessions: null, isExhausted: false };
@@ -172,9 +182,8 @@ export function useStudents() {
     // ★ 전부 fetchAll로 조회 (기본 1000행 제한 때문에 출석 데이터가 잘리던 문제 수정)
     const { data: attendanceRows } = await fetchAll("attendance", ["id"]);
     const { data: paymentRows } = await fetchAll("payments", ["student_id", "month"]);
-    // ★ id를 마지막 정렬 기준으로 추가: 같은 날짜 이력이 여러 개여도 항상 나중에 저장된 것이 뒤에 와서 적용됨
-    const { data: historyRows } = await fetchAll("session_config_history", ["effective_from", "student_id", "id"]);
-    const { data: dayHistoryRows } = await fetchAll("day_config_history", ["effective_from", "student_id", "id"]);
+    const { data: historyRows } = await fetchAll("session_config_history", ["effective_from", "id"]);
+    const { data: dayHistoryRows } = await fetchAll("day_config_history", ["effective_from", "id"]);
 
     const merged = (studentRows || []).map((row) => {
       const student = fromDbStudent(row);
@@ -224,6 +233,9 @@ export function useStudents() {
   }
 
   // 출석 토글 — isMakeup이 true면 보강으로 기록.
+  // 회차 번호(N회)와 잔여/마감 여부는 별도로 저장하지 않고,
+  // loadStudents() 시점에 attendance 테이블 + 이력을 기준으로 항상 재계산되므로
+  // 순서·삭제·정정과 무관하게 항상 정확하고 서로 일치함.
   async function toggleAttendance(studentId, dateStr, isMakeup = false) {
     const key = `${studentId}`; // 학생 단위로 잠가서 다른 날짜 칸도 순차 처리되게 함
     if (pendingToggles.current.has(key)) return; // 처리 중이면 중복 클릭 무시
@@ -243,6 +255,7 @@ export function useStudents() {
           .eq("date", dateStr);
         if (error) console.error("출석 해제 실패:", error);
       } else {
+        // ★ insert 대신 upsert: 화면 상태와 DB가 어긋나 있어도 (student_id, date) 중복 오류 없이 저장됨
         const { error } = await supabase
           .from("attendance")
           .upsert(
@@ -297,12 +310,14 @@ export function useStudents() {
     const { data: inserted, error } = await supabase.from("students").insert(toDbStudent(data)).select().single();
     if (!error && inserted) {
       if (data.type === "횟수제") {
+        // 신규 학생은 등록일부터 지정한 횟수로 회차 이력 1건 자동 생성
         await supabase.from("session_config_history").insert({
           student_id: inserted.id,
           effective_from: data.registeredAt,
           total_sessions: data.totalSessions,
         });
       }
+      // 신규 학생은 등록일부터 지정한 요일로 요일 이력 1건 자동 생성
       await supabase.from("day_config_history").insert({
         student_id: inserted.id,
         effective_from: data.registeredAt,
@@ -320,28 +335,23 @@ export function useStudents() {
   }
 
   // 회차(횟수) 변경 이력 추가 — 특정 날짜부터 새 총 횟수를 적용
-  // ★ 같은 학생+같은 날짜 이력이 이미 있으면 새로 쌓지 않고 그 행을 덮어쓴다.
+  // ★ 같은 학생 + 같은 적용일 이력이 이미 있으면 새로 쌓지 않고 덮어쓴다 (이력 중복 방지)
   async function addSessionConfigChange(studentId, newTotalSessions, effectiveFrom) {
-    const { data: sameDayRows, error: findError } = await supabase
+    const { data: existing, error: findError } = await supabase
       .from("session_config_history")
       .select("id")
       .eq("student_id", studentId)
       .eq("effective_from", effectiveFrom)
-      .order("id", { ascending: true });
+      .order("id", { ascending: false })
+      .limit(1);
     if (findError) console.error("회차 이력 조회 실패:", findError);
 
-    if (sameDayRows && sameDayRows.length > 0) {
-      // 가장 마지막 행을 수정하고, 같은 날짜의 나머지 중복 행은 정리
-      const keepId = sameDayRows[sameDayRows.length - 1].id;
+    if (existing && existing.length > 0) {
       const { error } = await supabase
         .from("session_config_history")
         .update({ total_sessions: newTotalSessions })
-        .eq("id", keepId);
+        .eq("id", existing[0].id);
       if (error) console.error("회차 이력 수정 실패:", error);
-      const extraIds = sameDayRows.slice(0, -1).map((r) => r.id);
-      if (extraIds.length > 0) {
-        await supabase.from("session_config_history").delete().in("id", extraIds);
-      }
     } else {
       const { error } = await supabase.from("session_config_history").insert({
         student_id: studentId,
@@ -353,47 +363,49 @@ export function useStudents() {
     await loadStudents();
   }
 
-  // 회차(횟수) 변경 이력 삭제 — 잘못 만들어진 이력을 지울 때 사용
-  // (등록일 기준 최초 이력 1건은 지우지 못하게 막는다)
+  // 회차(횟수) 변경 이력 삭제 — 학생에게 남은 마지막 이력 1건은 지울 수 없다
   async function deleteSessionConfigChange(studentId, historyId) {
-    const student = students.find((s) => s.id === studentId);
-    if (!student) return;
-    const history = student.sessionHistory || [];
-    if (history.length <= 1) {
-      console.warn("마지막 남은 회차 이력은 삭제할 수 없습니다.");
-      return;
+    const { count, error: countError } = await supabase
+      .from("session_config_history")
+      .select("id", { count: "exact", head: true })
+      .eq("student_id", studentId);
+    if (countError) {
+      console.error("회차 이력 개수 확인 실패:", countError);
+      return { ok: false, reason: "error" };
     }
+    if ((count || 0) <= 1) return { ok: false, reason: "last" };
+
     const { error } = await supabase
       .from("session_config_history")
       .delete()
       .eq("id", historyId)
       .eq("student_id", studentId);
-    if (error) console.error("회차 이력 삭제 실패:", error);
+    if (error) {
+      console.error("회차 이력 삭제 실패:", error);
+      return { ok: false, reason: "error" };
+    }
     await loadStudents();
+    return { ok: true };
   }
 
   // 요일 변경 이력 추가 — 특정 날짜부터 새 요일(및 반 구분)을 적용
-  // ★ 같은 학생+같은 날짜 이력이 이미 있으면 덮어쓴다.
+  // ★ 같은 학생 + 같은 적용일 이력이 이미 있으면 새로 쌓지 않고 덮어쓴다 (이력 중복 방지)
   async function addDayConfigChange(studentId, newDays, effectiveFrom, classType) {
-    const { data: sameDayRows, error: findError } = await supabase
+    const { data: existing, error: findError } = await supabase
       .from("day_config_history")
       .select("id")
       .eq("student_id", studentId)
       .eq("effective_from", effectiveFrom)
-      .order("id", { ascending: true });
+      .order("id", { ascending: false })
+      .limit(1);
     if (findError) console.error("요일 이력 조회 실패:", findError);
 
-    if (sameDayRows && sameDayRows.length > 0) {
-      const keepId = sameDayRows[sameDayRows.length - 1].id;
+    if (existing && existing.length > 0) {
       const { error } = await supabase
         .from("day_config_history")
         .update({ days: newDays, class_type: classType })
-        .eq("id", keepId);
+        .eq("id", existing[0].id);
       if (error) console.error("요일 이력 수정 실패:", error);
-      const extraIds = sameDayRows.slice(0, -1).map((r) => r.id);
-      if (extraIds.length > 0) {
-        await supabase.from("day_config_history").delete().in("id", extraIds);
-      }
     } else {
       const { error } = await supabase.from("day_config_history").insert({
         student_id: studentId,
