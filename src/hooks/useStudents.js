@@ -388,6 +388,35 @@ export function useStudents() {
     return { ok: true };
   }
 
+  // 회차(횟수) 변경 이력의 "적용 시작일"만 수정 — 총 횟수는 그대로 둔다
+  // 같은 학생에게 이미 그 날짜의 다른 이력이 있으면 합쳐지지 않도록 막는다.
+  async function updateSessionConfigDate(studentId, historyId, newEffectiveFrom) {
+    const { data: sameDate, error: findError } = await supabase
+      .from("session_config_history")
+      .select("id")
+      .eq("student_id", studentId)
+      .eq("effective_from", newEffectiveFrom)
+      .neq("id", historyId)
+      .limit(1);
+    if (findError) {
+      console.error("회차 이력 조회 실패:", findError);
+      return { ok: false, reason: "error" };
+    }
+    if (sameDate && sameDate.length > 0) return { ok: false, reason: "duplicate" };
+
+    const { error } = await supabase
+      .from("session_config_history")
+      .update({ effective_from: newEffectiveFrom })
+      .eq("id", historyId)
+      .eq("student_id", studentId);
+    if (error) {
+      console.error("회차 이력 날짜 수정 실패:", error);
+      return { ok: false, reason: "error" };
+    }
+    await loadStudents();
+    return { ok: true };
+  }
+
   // 요일 변경 이력 추가 — 특정 날짜부터 새 요일(및 반 구분)을 적용
   // ★ 같은 학생 + 같은 적용일 이력이 이미 있으면 새로 쌓지 않고 덮어쓴다 (이력 중복 방지)
   async function addDayConfigChange(studentId, newDays, effectiveFrom, classType) {
@@ -439,6 +468,7 @@ export function useStudents() {
   return {
     students, loading, toggleAttendance, togglePayment, setPayment,
     addStudent, updateStudent, deleteStudent, setStudentStatus,
-    addSessionConfigChange, deleteSessionConfigChange, addDayConfigChange, getDaysAt,
+    addSessionConfigChange, deleteSessionConfigChange, updateSessionConfigDate,
+    addDayConfigChange, getDaysAt,
   };
 }
