@@ -51,7 +51,13 @@ export function StudentModal({
   const currentSessionNumber = student.currentSessionNumber;
 
   function handleSave() {
-    const sessionsChanged = form.type === "횟수제" && Number(form.totalSessions) !== Number(student.totalSessions);
+    // 횟수 숫자가 바뀌었거나, 월정액→횟수제로 유형이 바뀌었거나, 횟수제인데 회차 이력이 아직 없으면
+    // 적용 시작일을 확인하고 회차 이력을 새로 만든다. (이력이 없으면 회차 계산이 전혀 안 됨)
+    const sessionsChanged =
+      form.type === "횟수제" &&
+      (Number(form.totalSessions) !== Number(student.totalSessions) ||
+        student.type !== "횟수제" ||
+        !(student.sessionHistory && student.sessionHistory.length > 0));
     const daysChanged = !sameDays(form.days, student.days) || form.classType !== student.classType;
 
     if (sessionsChanged) {
