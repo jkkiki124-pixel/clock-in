@@ -199,7 +199,7 @@ export function useStudents() {
 
       const history = (historyRows || [])
         .filter((h) => h.student_id === student.id)
-        .map((h) => ({ id: h.id, effectiveFrom: h.effective_from, totalSessions: h.total_sessions }));
+        .map((h) => ({ id: h.id, effectiveFrom: h.effective_from, totalSessions: h.total_sessions, isBaseline: !!h.is_baseline }));
 
       const dayHistory = (dayHistoryRows || [])
         .filter((h) => h.student_id === student.id)
@@ -374,6 +374,7 @@ export function useStudents() {
       student_id: studentId,
       effective_from: baseDate,
       total_sessions: totalSessions,
+      is_baseline: true, // 화면의 이력 목록에서는 숨김 (계산에만 사용)
     });
     if (error) console.error("앞 구간 이력 자동 생성 실패:", error);
   }
@@ -413,7 +414,8 @@ export function useStudents() {
     const { count, error: countError } = await supabase
       .from("session_config_history")
       .select("id", { count: "exact", head: true })
-      .eq("student_id", studentId);
+      .eq("student_id", studentId)
+      .eq("is_baseline", false); // 숨겨진 앞 구간 이력은 제외하고, 눈에 보이는 이력이 1건 남으면 삭제 불가
     if (countError) {
       console.error("회차 이력 개수 확인 실패:", countError);
       return { ok: false, reason: "error" };
